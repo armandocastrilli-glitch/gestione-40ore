@@ -22,17 +22,18 @@ export default function AppGestioneTotale() {
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       {!user ? (
         <div className="max-w-md mx-auto pt-20 p-6 text-center">
-          <h1 className="text-3xl font-bold mb-8 text-blue-900 font-serif">Gestione 40+40</h1>
-          <div className="bg-white p-8 rounded-3xl shadow-2xl border">
-            <input type="text" placeholder="CODICE ACCESSO" className="w-full p-4 border rounded-2xl mb-4 text-center text-2xl uppercase font-mono shadow-inner"
+          <h1 className="text-4xl font-black mb-8 text-blue-900 tracking-tighter italic">ScuolaControl 40+40</h1>
+          <div className="bg-white p-8 rounded-[2.5rem] shadow-2xl border border-slate-100">
+            <p className="text-slate-400 mb-6 text-sm font-bold uppercase tracking-widest">Accesso Riservato</p>
+            <input type="text" placeholder="CODICE PERSONALE" className="w-full p-5 border-2 border-slate-100 rounded-2xl mb-4 text-center text-2xl uppercase font-mono focus:border-blue-500 outline-none transition-all shadow-inner"
               onChange={(e) => setLoginCode(e.target.value.toUpperCase())} />
-            <button onClick={handleLogin} className="w-full bg-blue-600 text-white p-4 rounded-2xl font-bold hover:bg-blue-700 transition shadow-lg">Entra</button>
+            <button onClick={handleLogin} className="w-full bg-blue-600 text-white p-5 rounded-2xl font-black text-lg hover:bg-blue-700 transition-all shadow-lg active:scale-95">ACCEDI</button>
           </div>
         </div>
       ) : user === 'admin' ? (
         <AdminPanel />
       ) : (
-        <DocentePanel docente={user} />
+        <DocentePanel docenteId={user.id} />
       )}
     </div>
   );
@@ -42,15 +43,14 @@ function AdminPanel() {
   const [tab, setTab] = useState('riepilogo');
   const [docenti, setDocenti] = useState([]);
   const [impegni, setImpegni] = useState([]);
+  const [selectedDocente, setSelectedDocente] = useState(null);
   const [selectedImpegno, setSelectedImpegno] = useState(null);
 
-  // Form Docente
+  // Form Stati
   const [nome, setNome] = useState('');
   const [oreSet, setOreSet] = useState(18);
   const [mesi, setMesi] = useState(9);
   const [tipoRipartizione, setTipoRipartizione] = useState('completamento');
-
-  // Form Impegno
   const [titolo, setTitolo] = useState('');
   const [dataImp, setDataImp] = useState('');
   const [durata, setDurata] = useState(2);
@@ -67,85 +67,52 @@ function AdminPanel() {
 
   const salvaDocente = async () => {
     const codice = Math.random().toString(36).substring(2, 7).toUpperCase();
-    let totale;
+    let oreA, oreB;
     if (tipoRipartizione === 'solo_mia') {
-        // 40h fisse su A + proporzionale su B
-        totale = (40 / 18 * oreSet) * (mesi / 9);
-        const oreA = 40; 
-        const oreB = parseFloat(totale.toFixed(1));
-        await supabase.from('docenti').insert([{ nome, codice_accesso: codice, ore_a_dovute: oreA, ore_b_dovute: oreB }]);
+      oreA = 40;
+      oreB = parseFloat(((40 / 18 * oreSet) * (mesi / 9)).toFixed(1));
     } else {
-        // Ripartizione 50/50 su tutto (Spezzone in completamento)
-        totale = ((80 / 18 * oreSet) * (mesi / 9)) / 2;
-        const oreMeta = parseFloat(totale.toFixed(1));
-        await supabase.from('docenti').insert([{ nome, codice_accesso: codice, ore_a_dovute: oreMeta, ore_b_dovute: oreMeta }]);
+      const meta = parseFloat((((80 / 18 * oreSet) * (mesi / 9)) / 2).toFixed(1));
+      oreA = meta; oreB = meta;
     }
-    alert(`Docente aggiunto! Codice: ${codice}`);
+    await supabase.from('docenti').insert([{ nome, codice_accesso: codice, ore_a_dovute: oreA, ore_b_dovute: oreB }]);
+    alert(`Docente creato! Codice: ${codice}`);
     caricaDati(); setTab('riepilogo');
-  };
-
-  const eliminaDocente = async (id) => {
-    if(confirm("Sei sicuro di voler eliminare questo docente?")) {
-        await supabase.from('docenti').delete().eq('id', id);
-        caricaDati();
-    }
-  };
-
-  const eliminaImpegno = async (id) => {
-    if(confirm("Eliminare l'impegno? Verrà rimosso anche dai piani dei docenti.")) {
-        await supabase.from('impegni').delete().eq('id', id);
-        caricaDati();
-    }
   };
 
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-8">
-      {/* HEADER STATISTICHE */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-3xl shadow-sm border-b-4 border-blue-500">
-            <p className="text-slate-500 text-sm font-bold uppercase">Docenti Totali</p>
-            <p className="text-4xl font-black">{docenti.length}</p>
-        </div>
-        <div className="bg-white p-6 rounded-3xl shadow-sm border-b-4 border-indigo-500">
-            <p className="text-slate-500 text-sm font-bold uppercase">Impegni a Calendario</p>
-            <p className="text-4xl font-black">{impegni.length}</p>
-        </div>
-        <div className="bg-white p-6 rounded-3xl shadow-sm border-b-4 border-green-500">
-            <p className="text-slate-500 text-sm font-bold uppercase">Codice Admin</p>
-            <p className="text-2xl font-mono mt-2">ADMIN123</p>
-        </div>
-      </div>
-
-      <nav className="flex flex-wrap gap-2 mb-8 bg-slate-200 p-1.5 rounded-2xl w-fit">
-        <button onClick={() => setTab('riepilogo')} className={`px-6 py-2.5 rounded-xl font-bold transition ${tab === 'riepilogo' ? 'bg-white shadow-md text-blue-600' : 'text-slate-600'}`}>Docenti</button>
-        <button onClick={() => setTab('calendario')} className={`px-6 py-2.5 rounded-xl font-bold transition ${tab === 'calendario' ? 'bg-white shadow-md text-blue-600' : 'text-slate-600'}`}>Calendario Impegni</button>
-        <button onClick={() => setTab('nuovo_docente')} className={`px-6 py-2.5 rounded-xl font-bold transition ${tab === 'nuovo_docente' ? 'bg-white shadow-md text-blue-600' : 'text-slate-600'}`}>+ Docente</button>
-        <button onClick={() => setTab('nuovo_impegno')} className={`px-6 py-2.5 rounded-xl font-bold transition ${tab === 'nuovo_impegno' ? 'bg-white shadow-md text-blue-600' : 'text-slate-600'}`}>+ Impegno</button>
+      {/* NAVIGATION */}
+      <nav className="flex flex-wrap gap-2 mb-8 bg-white p-2 rounded-2xl shadow-sm border border-slate-100 w-fit">
+        {['riepilogo', 'calendario', 'nuovo_docente', 'nuovo_impegno'].map(t => (
+          <button key={t} onClick={() => {setTab(t); setSelectedDocente(null)}} 
+            className={`px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${tab === t ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>
+            {t.replace('_', ' ')}
+          </button>
+        ))}
       </nav>
 
-      {/* TABELLA RIEPILOGO DOCENTI */}
-      {tab === 'riepilogo' && (
-        <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200">
+      {/* VIEW: RIEPILOGO DOCENTI */}
+      {tab === 'riepilogo' && !selectedDocente && (
+        <div className="bg-white rounded-[2rem] shadow-xl overflow-hidden border border-slate-100">
           <table className="w-full text-left">
-            <thead className="bg-slate-50 border-b">
+            <thead className="bg-slate-50/50 border-b">
               <tr>
-                <th className="p-5 text-sm font-bold text-slate-400 uppercase">Docente / Codice</th>
-                <th className="p-5 text-sm font-bold text-slate-400 uppercase text-center">Debito A</th>
-                <th className="p-5 text-sm font-bold text-slate-400 uppercase text-center">Debito B</th>
-                <th className="p-5 text-sm font-bold text-slate-400 uppercase text-right">Azioni</th>
+                <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Docente</th>
+                <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Codice</th>
+                <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Debito A/B</th>
+                <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Azioni</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-50">
               {docenti.map(d => (
-                <tr key={d.id} className="hover:bg-slate-50/80 transition">
-                  <td className="p-5">
-                    <p className="font-bold text-lg text-slate-800">{d.nome}</p>
-                    <code className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-sm font-bold tracking-widest">{d.codice_accesso}</code>
-                  </td>
-                  <td className="p-5 text-center font-bold text-blue-900">{d.ore_a_dovute}h</td>
-                  <td className="p-5 text-center font-bold text-indigo-900">{d.ore_b_dovute}h</td>
-                  <td className="p-5 text-right">
-                    <button onClick={() => eliminaDocente(d.id)} className="text-red-400 hover:text-red-600 p-2 transition">Elimina</button>
+                <tr key={d.id} className="hover:bg-blue-50/30 transition-colors group">
+                  <td className="p-6 font-black text-slate-700 text-lg">{d.nome}</td>
+                  <td className="p-6 text-center"><code className="bg-slate-100 text-slate-500 px-3 py-1 rounded-lg font-mono font-bold">{d.codice_accesso}</code></td>
+                  <td className="p-6 text-center font-bold text-slate-400"><span className="text-blue-600">{d.ore_a_dovute}h</span> / <span className="text-indigo-600">{d.ore_b_dovute}h</span></td>
+                  <td className="p-6 text-right space-x-2">
+                    <button onClick={() => setSelectedDocente(d)} className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all">Gestisci Piano</button>
+                    <button onClick={async () => {if(confirm("Eliminare?")) {await supabase.from('docenti').delete().eq('id', d.id); caricaDati();}}} className="text-red-300 hover:text-red-500 transition-colors italic text-xs">Elimina</button>
                   </td>
                 </tr>
               ))}
@@ -154,133 +121,151 @@ function AdminPanel() {
         </div>
       )}
 
-      {/* CALENDARIO E PARTECIPANTI */}
-      {tab === 'calendario' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="space-y-4">
-                <h2 className="text-2xl font-bold mb-4">Seleziona un impegno</h2>
-                {impegni.map(i => (
-                    <div key={i.id} onClick={() => setSelectedImpegno(i)} 
-                        className={`p-5 rounded-2xl border-2 cursor-pointer transition ${selectedImpegno?.id === i.id ? 'border-blue-500 bg-blue-50' : 'bg-white border-transparent shadow-sm hover:border-slate-300'}`}>
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase ${i.tipo === 'A' ? 'bg-blue-200 text-blue-800' : 'bg-indigo-200 text-indigo-800'}`}>Comma {i.tipo}</span>
-                                <p className="font-bold text-lg mt-1">{i.titolo}</p>
-                                <p className="text-sm text-slate-500">{i.data} • {i.durata_max} ore</p>
-                            </div>
-                            <button onClick={(e) => {e.stopPropagation(); eliminaImpegno(i.id)}} className="text-slate-300 hover:text-red-500 text-xs">Rimuovi</button>
-                        </div>
-                    </div>
-                ))}
-            </div>
-            <div className="bg-white p-8 rounded-3xl shadow-xl border min-h-[400px]">
-                {selectedImpegno ? (
-                    <>
-                        <h3 className="text-xl font-bold mb-2">Partecipanti: {selectedImpegno.titolo}</h3>
-                        <p className="text-slate-400 text-sm mb-6 italic text-center">La funzione di appello presenze verrà caricata qui sotto...</p>
-                        <div className="border-t pt-4">
-                            <p className="text-center text-slate-300 py-10">In questa sezione vedrai l'elenco dei docenti che hanno aderito a questo specifico impegno.</p>
-                        </div>
-                    </>
-                ) : (
-                    <div className="h-full flex items-center justify-center text-slate-400 italic">Clicca su un impegno a sinistra per vedere i dettagli</div>
-                )}
-            </div>
+      {/* VIEW: ADMIN MODIFICA PIANO DOCENTE */}
+      {selectedDocente && (
+        <div>
+          <button onClick={() => setSelectedDocente(null)} className="mb-6 text-blue-600 font-bold flex items-center gap-2"> ← Torna alla lista </button>
+          <DocentePanel docenteId={selectedDocente.id} adminMode={true} />
         </div>
       )}
 
-      {/* FORM AGGIUNTA DOCENTE */}
-      {tab === 'nuovo_docente' && (
-        <div className="bg-white p-8 rounded-3xl shadow-xl border max-w-2xl mx-auto">
-          <h2 className="text-2xl font-bold mb-6 text-center">Anagrafica Docente</h2>
-          <div className="space-y-6">
-            <input type="text" placeholder="Nome e Cognome" className="w-full p-4 border rounded-2xl text-lg shadow-sm focus:ring-2 ring-blue-500 outline-none transition" onChange={e => setNome(e.target.value)} />
-            <div className="grid grid-cols-2 gap-4">
-              <label className="block">
-                  <span className="text-xs font-bold text-slate-400 uppercase ml-2">Ore Settimanali</span>
-                  <input type="number" defaultValue="18" className="w-full p-4 border rounded-2xl mt-1 font-bold" onChange={e => setOreSet(Number(e.target.value))} />
-              </label>
-              <label className="block">
-                  <span className="text-xs font-bold text-slate-400 uppercase ml-2">Mesi Servizio</span>
-                  <input type="number" defaultValue="9" className="w-full p-4 border rounded-2xl mt-1 font-bold" onChange={e => setMesi(Number(e.target.value))} />
-              </label>
-            </div>
-            <div className="bg-slate-50 p-4 rounded-2xl border-2 border-dashed border-slate-200">
-                <p className="text-xs font-bold text-slate-500 mb-3 text-center uppercase">Situazione Cattedra</p>
-                <div className="flex gap-4">
-                    <button onClick={() => setTipoRipartizione('completamento')} className={`flex-1 p-4 rounded-xl text-sm font-bold transition ${tipoRipartizione === 'completamento' ? 'bg-blue-600 text-white shadow-lg' : 'bg-white border'}`}>Completamento (A+B)</button>
-                    <button onClick={() => setTipoRipartizione('solo_mia')} className={`flex-1 p-4 rounded-xl text-sm font-bold transition ${tipoRipartizione === 'solo_mia' ? 'bg-blue-600 text-white shadow-lg' : 'bg-white border'}`}>Solo mia scuola (40A fixed)</button>
+      {/* VIEW: CALENDARIO */}
+      {tab === 'calendario' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="space-y-4">
+            <h2 className="text-2xl font-black text-slate-800 mb-6 uppercase italic">Eventi in Programma</h2>
+            {impegni.map(i => (
+              <div key={i.id} onClick={() => setSelectedImpegno(i)} 
+                className={`p-6 rounded-[2rem] border-2 cursor-pointer transition-all shadow-sm ${selectedImpegno?.id === i.id ? 'border-blue-500 bg-blue-50' : 'bg-white border-transparent hover:border-slate-200'}`}>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <span className={`text-[10px] font-black px-2 py-1 rounded-md uppercase ${i.tipo === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'}`}>Comma {i.tipo}</span>
+                    <h3 className="font-black text-xl text-slate-800 mt-2">{i.titolo}</h3>
+                    <p className="text-slate-400 font-bold text-sm">{i.data} • {i.durata_max} ore</p>
+                  </div>
+                  <button onClick={(e) => {e.stopPropagation(); if(confirm("Elimina evento?")) {supabase.from('impegni').delete().eq('id', i.id).then(caricaDati);}}} className="text-slate-300 hover:text-red-500 uppercase text-[10px] font-black">Rimuovi</button>
                 </div>
-            </div>
-            <button onClick={salvaDocente} className="w-full bg-blue-600 text-white p-5 rounded-2xl font-bold text-lg hover:bg-blue-700 shadow-xl transition">Salva e Genera Codice</button>
+              </div>
+            ))}
+          </div>
+          <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-slate-100 h-fit">
+            {selectedImpegno ? (
+              <>
+                <h3 className="text-2xl font-black text-slate-800 mb-1">{selectedImpegno.titolo}</h3>
+                <p className="text-slate-400 font-bold mb-8">Elenco partecipanti e pianificazioni</p>
+                <div className="space-y-3">
+                   <p className="text-center py-20 text-slate-300 italic">Lista aderenti in caricamento...</p>
+                </div>
+              </>
+            ) : (
+              <div className="py-40 text-center text-slate-300 font-bold uppercase tracking-widest">Seleziona un evento a sinistra</div>
+            )}
           </div>
         </div>
       )}
 
-      {/* FORM NUOVO IMPEGNO */}
-      {tab === 'nuovo_impegno' && (
-        <div className="bg-white p-8 rounded-3xl shadow-xl border max-w-2xl mx-auto text-center">
-            <h2 className="text-2xl font-bold mb-8">Nuova Riunione a Calendario</h2>
-            <div className="space-y-5">
-                <input type="text" placeholder="Es: Collegio Docenti Unitario" className="w-full p-4 border rounded-2xl text-center font-bold" onChange={e => setTitolo(e.target.value)} />
-                <div className="grid grid-cols-2 gap-4">
-                    <input type="date" className="p-4 border rounded-2xl font-bold" onChange={e => setDataImp(e.target.value)} />
-                    <input type="number" placeholder="Durata ore" className="p-4 border rounded-2xl font-bold text-center" onChange={e => setDurata(Number(e.target.value))} />
-                </div>
-                <div className="flex gap-2 p-1.5 bg-slate-100 rounded-2xl">
-                    <button onClick={() => setComma('A')} className={`flex-1 p-3 rounded-xl font-bold transition ${comma === 'A' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>COMMA A</button>
-                    <button onClick={() => setComma('B')} className={`flex-1 p-3 rounded-xl font-bold transition ${comma === 'B' ? 'bg-white text-indigo-600 shadow' : 'text-slate-500'}`}>COMMA B</button>
-                </div>
-                <button onClick={async () => {
-                    await supabase.from('impegni').insert([{ titolo, data: dataImp, durata_max: durata, tipo: comma }]);
-                    alert("Impegno Pubblicato!"); caricaDati(); setTab('calendario');
-                }} className="w-full bg-indigo-600 text-white p-5 rounded-2xl font-bold text-lg hover:bg-indigo-700 shadow-xl transition">Pubblica a Calendario</button>
+      {/* VIEW: NUOVO DOCENTE & IMPEGNO (Usa i codici delle risposte precedenti) */}
+      {tab === 'nuovo_docente' && (
+         <div className="bg-white p-10 rounded-[3rem] shadow-xl border max-w-xl mx-auto">
+            <h2 className="text-3xl font-black text-slate-800 mb-8 text-center uppercase tracking-tighter italic">Nuovo Profilo</h2>
+            <div className="space-y-4">
+               <input type="text" placeholder="NOME E COGNOME" className="w-full p-5 bg-slate-50 border-none rounded-2xl font-bold text-center uppercase shadow-inner" onChange={e => setNome(e.target.value)} />
+               <div className="grid grid-cols-2 gap-4">
+                  <input type="number" placeholder="ORE SETT." className="p-5 bg-slate-50 border-none rounded-2xl font-bold text-center" onChange={e => setOreSet(Number(e.target.value))} />
+                  <input type="number" placeholder="MESI SERV." className="p-5 bg-slate-50 border-none rounded-2xl font-bold text-center" onChange={e => setMesi(Number(e.target.value))} />
+               </div>
+               <select className="w-full p-5 bg-blue-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest outline-none shadow-lg cursor-pointer" onChange={e => setTipoRipartizione(e.target.value)}>
+                  <option value="completamento">Completamento (Ripartisce A e B)</option>
+                  <option value="solo_mia">Solo mia scuola (40h A fisso)</option>
+               </select>
+               <button onClick={salvaDocente} className="w-full bg-slate-900 text-white p-6 rounded-2xl font-black text-lg hover:scale-[1.02] transition-transform">CREA DOCENTE</button>
             </div>
-        </div>
+         </div>
+      )}
+
+      {tab === 'nuovo_impegno' && (
+         <div className="bg-white p-10 rounded-[3rem] shadow-xl border max-w-xl mx-auto">
+            <h2 className="text-3xl font-black text-slate-800 mb-8 text-center uppercase tracking-tighter italic">Crea Evento</h2>
+            <div className="space-y-4">
+               <input type="text" placeholder="TITOLO RIUNIONE" className="w-full p-5 bg-slate-50 border-none rounded-2xl font-bold text-center uppercase shadow-inner" onChange={e => setTitolo(e.target.value)} />
+               <div className="grid grid-cols-2 gap-4">
+                  <input type="date" className="p-5 bg-slate-50 border-none rounded-2xl font-bold" onChange={e => setDataImp(e.target.value)} />
+                  <input type="number" placeholder="DURATA ORE" className="p-5 bg-slate-50 border-none rounded-2xl font-bold text-center shadow-inner" onChange={e => setDurata(Number(e.target.value))} />
+               </div>
+               <div className="flex gap-2">
+                  <button onClick={() => setComma('A')} className={`flex-1 p-4 rounded-xl font-black text-[10px] tracking-widest ${comma === 'A' ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}>COMMA A</button>
+                  <button onClick={() => setComma('B')} className={`flex-1 p-4 rounded-xl font-black text-[10px] tracking-widest ${comma === 'B' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}>COMMA B</button>
+               </div>
+               <button onClick={async () => {await supabase.from('impegni').insert([{ titolo, data: dataImp, durata_max: durata, tipo: comma }]); alert("Evento Pubblicato!"); setTab('calendario');}} 
+                  className="w-full bg-slate-900 text-white p-6 rounded-2xl font-black text-lg hover:scale-[1.02] transition-transform shadow-2xl">PUBBLICA A CALENDARIO</button>
+            </div>
+         </div>
       )}
     </div>
   );
 }
 
-function DocentePanel({ docente }) {
+function DocentePanel({ docenteId, adminMode = false }) {
+  const [docente, setDocente] = useState(null);
   const [impegni, setImpegni] = useState([]);
+  const [piani, setPiani] = useState({}); // {impegnoId: ore}
+
   useEffect(() => {
-    supabase.from('impegni').select('*').order('data').then(({ data }) => setImpegni(data || []));
-  }, []);
+    caricaDati();
+  }, [docenteId]);
+
+  const caricaDati = async () => {
+    const { data: d } = await supabase.from('docenti').select('*').eq('id', docenteId).single();
+    const { data: i } = await supabase.from('impegni').select('*').order('data');
+    setDocente(d);
+    setImpegni(i || []);
+  };
+
+  const salvaPianificazione = async (impId, ore) => {
+    alert(`Pianificato: ${ore} ore. (In produzione qui salviamo su tabella 'piani')`);
+  };
+
+  if (!docente) return <p className="text-center p-20 font-bold text-slate-300">Caricamento profilo...</p>;
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <div className="bg-white p-10 rounded-[3rem] shadow-2xl border mb-10 text-center relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-400 to-indigo-600"></div>
-        <h1 className="text-3xl font-black text-slate-800 uppercase tracking-tight">Prof. {docente.nome}</h1>
-        <p className="text-slate-400 mt-1 font-medium tracking-widest text-xs">Pannello Personale Docente</p>
-        
-        <div className="grid grid-cols-2 gap-6 mt-10">
-          <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
-            <p className="text-[10px] uppercase font-black text-blue-500 tracking-widest mb-2">Piano Comma A</p>
-            <p className="text-4xl font-black text-slate-800">0 / <span className="text-blue-500">{docente.ore_a_dovute}</span></p>
-            <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase">Ore Obbligatorie</p>
-          </div>
-          <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
-            <p className="text-[10px] uppercase font-black text-indigo-500 tracking-widest mb-2">Piano Comma B</p>
-            <p className="text-4xl font-black text-slate-800">0 / <span className="text-indigo-500">{docente.ore_b_dovute}</span></p>
-            <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase">Ore Obbligatorie</p>
-          </div>
+    <div className="max-w-4xl mx-auto pb-20 p-4">
+      <div className="bg-white p-10 rounded-[3rem] shadow-2xl border border-slate-100 mb-10 relative overflow-hidden">
+        <div className={`absolute top-0 left-0 w-full h-3 bg-gradient-to-r ${adminMode ? 'from-orange-400 to-red-500' : 'from-blue-500 to-indigo-600'}`}></div>
+        <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+            <div className="text-center md:text-left">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-1">{adminMode ? 'Editing Piano' : 'Profilo Docente'}</p>
+                <h1 className="text-4xl font-black text-slate-800 tracking-tighter italic uppercase">{docente.nome}</h1>
+            </div>
+            <div className="flex gap-4">
+                <div className="text-center bg-slate-50 px-6 py-4 rounded-[2rem] border border-slate-100 shadow-inner">
+                    <p className="text-[9px] font-black text-blue-500 uppercase mb-1">Debito A</p>
+                    <p className="text-2xl font-black text-slate-800">0 / <span className="text-blue-500">{docente.ore_a_dovute}</span></p>
+                </div>
+                <div className="text-center bg-slate-50 px-6 py-4 rounded-[2rem] border border-slate-100 shadow-inner">
+                    <p className="text-[9px] font-black text-indigo-500 uppercase mb-1">Debito B</p>
+                    <p className="text-2xl font-black text-slate-800">0 / <span className="text-indigo-500">{docente.ore_b_dovute}</span></p>
+                </div>
+            </div>
         </div>
       </div>
 
       <div className="space-y-4">
-        <h2 className="text-xl font-black ml-4 text-slate-700 uppercase tracking-wider italic">Impegni Disponibili</h2>
+        <h2 className="text-xl font-black text-slate-700 uppercase italic tracking-widest ml-6 mb-6">Pianificazione Attiva</h2>
         {impegni.map(i => (
-          <div key={i.id} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4 hover:shadow-md transition">
+          <div key={i.id} className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4 hover:shadow-lg transition-all group">
             <div className="flex-1">
-              <span className={`px-2 py-1 rounded-lg text-[10px] font-black mr-2 ${i.tipo === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'}`}>COMMA {i.tipo}</span>
-              <p className="font-black text-slate-800 text-lg">{i.titolo}</p>
-              <p className="text-sm text-slate-400 font-medium">{i.data} • {i.durata_max} ore massime</p>
+              <span className={`px-2 py-1 rounded-lg text-[10px] font-black mr-2 ${i.tipo === 'A' ? 'bg-blue-100 text-blue-600' : 'bg-indigo-100 text-indigo-600'}`}>COMMA {i.tipo}</span>
+              <p className="font-black text-slate-800 text-lg group-hover:text-blue-600 transition-colors">{i.titolo}</p>
+              <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">{i.data} • Massimo {i.durata_max} ore</p>
             </div>
-            <div className="flex items-center gap-3">
-              <input type="number" defaultValue={i.durata_max} className="w-16 p-3 border rounded-2xl text-center font-black text-blue-600 bg-slate-50 shadow-inner" />
-              <button className="bg-slate-900 text-white px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-600 transition shadow-lg">Pianifica</button>
+            <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-2xl border border-slate-100">
+              <input type="number" defaultValue={i.durata_max} max={i.durata_max} className="w-16 p-3 bg-white border-none rounded-xl text-center font-black text-blue-600 shadow-md outline-none" id={`ore-${i.id}`} />
+              <button onClick={() => {
+                  const val = document.getElementById(`ore-${i.id}`).value;
+                  salvaPianificazione(i.id, val);
+              }} className="bg-slate-900 text-white px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 transition-all shadow-md active:scale-95">
+                  {adminMode ? 'Assegna' : 'Pianifica'}
+              </button>
             </div>
           </div>
         ))}
