@@ -147,23 +147,57 @@ function AdminPanel() {
       {tab === 'docenti' && !selDoc && (
         <div className="grid grid-cols-1 gap-6">
           {data.docenti.map((d: any) => (
-            <div key={d.id} className="bg-white p-8 rounded-[3.5rem] border border-slate-100 shadow-sm flex flex-col md:flex-row items-center gap-10 hover:shadow-xl transition-all">
-              <div className="flex-1">
-                <h3 className="text-3xl font-black uppercase text-slate-800 italic tracking-tighter">{d.nome}</h3>
-                <div className="flex flex-wrap gap-4 mt-3">
-                  <span className="bg-blue-50 text-blue-700 px-4 py-1 rounded-xl text-[10px] font-black uppercase">{d.contratto}</span>
-                  <span className="bg-slate-50 text-slate-500 px-4 py-1 rounded-xl text-[10px] font-black uppercase">CODE: {d.codice_accesso}</span>
-                  <span className="bg-slate-50 text-slate-500 px-4 py-1 rounded-xl text-[10px] font-black uppercase">{d.ore_settimanali}H/SETT</span>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <button onClick={() => setSelDoc(d)} className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase shadow-lg hover:bg-blue-800">Gestisci</button>
-                <button onClick={() => deleteDocente(d.id)} className="bg-red-50 text-red-500 p-4 rounded-2xl border border-red-100 hover:bg-red-600 hover:text-white transition-all">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                </button>
-              </div>
-            </div>
-          ))}
+  <div key={d.id} className="bg-white p-8 rounded-[3.5rem] border border-slate-100 shadow-sm flex flex-col md:flex-row items-center gap-10 hover:shadow-xl transition-all group">
+    {/* Parte Sinistra: Avatar e Nome */}
+    <div className="flex items-center gap-6 flex-1">
+      <div className="w-16 h-16 bg-slate-900 text-white rounded-3xl flex items-center justify-center font-black text-2xl italic shadow-lg group-hover:bg-blue-700 transition-colors">
+        {d.nome[0]}
+      </div>
+      <div>
+        <h3 className="text-3xl font-black uppercase text-slate-800 italic tracking-tighter leading-none">{d.nome}</h3>
+        <div className="flex flex-wrap gap-3 mt-4">
+          <span className="bg-blue-50 text-blue-700 px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-100">
+            {d.contratto}
+          </span>
+          <span className="bg-emerald-50 text-emerald-600 px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-100">
+            Cod: {d.codice_accesso}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    {/* Parte Centrale: Dati Tecnici */}
+    <div className="flex gap-8 border-x border-slate-50 px-10">
+      <div className="text-center">
+        <p className="text-[9px] font-black text-slate-300 uppercase mb-1">Ore/Sett</p>
+        <p className="text-xl font-black text-slate-700">{d.ore_settimanali}h</p>
+      </div>
+      <div className="text-center">
+        <p className="text-[9px] font-black text-slate-300 uppercase mb-1">Servizio</p>
+        <p className="text-xl font-black text-slate-700">{d.mesi_servizio}m</p>
+      </div>
+    </div>
+
+    {/* Parte Destra: Azioni */}
+    <div className="flex items-center gap-4">
+      <button 
+        onClick={() => setSelDoc(d)} 
+        className="bg-slate-900 text-white px-10 py-5 rounded-[2rem] font-black text-[10px] uppercase tracking-widest shadow-lg hover:bg-blue-800 hover:scale-105 transition-all"
+      >
+        Gestisci Staff
+      </button>
+      <button 
+        onClick={() => deleteDocente(d.id)} 
+        className="bg-white text-slate-300 p-5 rounded-[2rem] border-2 border-slate-50 hover:border-red-100 hover:text-red-500 hover:bg-red-50 transition-all"
+        title="Elimina Docente"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        </svg>
+      </button>
+    </div>
+  </div>
+))}
         </div>
       )}
 
