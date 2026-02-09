@@ -374,33 +374,38 @@ function AdminPanel() {
             
             const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
             
-            const { data: upData, error: upErr } = await supabase.storage
-              .from('files')
-              .upload(fileName, file);
+            try {
+              // 1. Caricamento fisico
+              const { error: upErr } = await supabase.storage
+                .from('files')
+                .upload(fileName, file);
 
-            if(upErr) {
-              alert("Errore Storage: " + upErr.message);
-              return;
+              if(upErr) throw upErr;
+
+              // 2. Recupero URL
+              const { data: { publicUrl } } = supabase.storage.from('files').getPublicUrl(fileName);
+
+              // 3. Salvataggio DB
+              await supabase.from('documenti').insert([{ 
+                nome: file.name, 
+                url: publicUrl, 
+                storage_path: fileName 
+              }]);
+
+              alert("File caricato con successo!");
+              window.location.reload(); // Ricarica per vedere il file senza perdere la sessione se i cookie sono attivi
+            } catch (err: any) {
+              alert("Errore durante il caricamento: " + err.message);
             }
-
-            const { data: { publicUrl } } = supabase.storage.from('files').getPublicUrl(fileName);
-
-            await supabase.from('documenti').insert([{ 
-              nome: file.name, 
-              url: publicUrl, 
-              storage_path: fileName 
-            }]);
-
-            if (typeof (window as any).loadData === 'function') (window as any).loadData();
-            else window.location.reload(); // Se non trova la funzione, ricarica la pagina per mostrare i file
           }} 
         />
-        {/* Usiamo window per evitare l'errore 'Cannot find name loading' */}
-        {(window as any).loading === true && (
-          <p className="mt-4 text-[10px] font-black text-blue-600 animate-pulse uppercase">
-            Caricamento in corso...
-          </p>
-        )}
+      </div>
+
+      {/* LISTA FILE SEMPLIFICATA PER EVITARE ERRORI */}
+      <div className="grid gap-4 mt-8">
+        <p className="text-[10px] font-black uppercase opacity-50">Documenti caricati:</p>
+        {/* Qui i file appariranno al prossimo refresh */}
+        <p className="text-[9px] italic opacity-50 text-center">I nuovi file appariranno dopo il ricaricamento della pagina.</p>
       </div>
 
       {/* LISTA FILE CON TASTO ELIMINA */}
