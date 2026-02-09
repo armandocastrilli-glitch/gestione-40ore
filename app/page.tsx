@@ -371,7 +371,7 @@ function AdminPanel() {
           onChange={async (e) => {
             const file = e.target.files?.[0];
             if(!file) return;
-            setLoading(true);
+            setLoading?(true);
             
             const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
             
