@@ -256,37 +256,75 @@ function AdminPanel() {
         </div>
       )}
 
-      {/* NUOVO DOCENTE CON MENU A TENDINA RIPRISTINATO */}
-      {tab === 'nuovo_doc' && (
-        <div className="max-w-3xl mx-auto bg-white p-16 rounded-[5rem] shadow-2xl border animate-in zoom-in">
-          <h2 className="text-4xl font-black mb-12 uppercase italic text-blue-800 tracking-tighter">Registrazione Staff</h2>
-          <div className="space-y-8">
-            <div className="space-y-3">
-              <label className="text-[10px] font-black text-slate-400 uppercase ml-6 tracking-widest">Nominativo Completo</label>
-              <input type="text" className="w-full p-8 bg-slate-50 rounded-[2.5rem] font-bold uppercase border-4 border-transparent focus:border-blue-600 outline-none transition-all" value={formDoc.nome} onChange={e => setFormDoc({...formDoc, nome: e.target.value})} />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-400 uppercase ml-6 tracking-widest">Tipo Contratto</label>
-                <select 
-  className="w-full p-8 bg-slate-50 rounded-[2.5rem] font-bold uppercase border-4 border-transparent focus:border-blue-600 outline-none appearance-none cursor-pointer" 
-  value={formDoc.contratto} 
-  onChange={e => setFormDoc({...formDoc, contratto: e.target.value})}
->
-  <option value="INTERA">Cattedra Intera (18h)</option>
-  <option value="COMPLETAMENTO">Spezzone + Completamento Esterno</option>
-  <option value="SPEZZONE">Spezzone Solo Nostra Scuola</option>
-</select>
-              </div>
-              <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-400 uppercase ml-6 tracking-widest">Ore Settimanali</label>
-                <input type="number" className="w-full p-8 bg-slate-50 rounded-[2.5rem] font-bold border-4 border-transparent focus:border-blue-600 outline-none" value={formDoc.ore} onChange={e => setFormDoc({...formDoc, ore: Number(e.target.value)})} />
-              </div>
-            </div>
-            <button onClick={saveDocente} className="w-full bg-blue-700 text-white p-10 rounded-[3rem] font-black text-2xl uppercase shadow-2xl hover:bg-slate-900 transition-all">Salva e Genera Codice</button>
-          </div>
+    /* --- INIZIO BLOCCO NUOVO DOCENTE AGGIORNATO --- */
+{tab === 'nuovo_doc' && (
+  <div className="max-w-4xl mx-auto bg-white p-12 md:p-16 rounded-[5rem] shadow-2xl border animate-in zoom-in">
+    <h2 className="text-4xl font-black mb-10 uppercase italic text-blue-800 tracking-tighter">Registrazione Staff</h2>
+    
+    <div className="space-y-8">
+      {/* 1. NOMINATIVO */}
+      <div className="space-y-3">
+        <label className="text-[10px] font-black text-slate-400 uppercase ml-6 tracking-widest">Nominativo Completo</label>
+        <input type="text" placeholder="ES: MARIO ROSSI" className="w-full p-8 bg-slate-50 rounded-[2.5rem] font-bold uppercase border-4 border-transparent focus:border-blue-600 outline-none transition-all" value={formDoc.nome} onChange={e => setFormDoc({...formDoc, nome: e.target.value})} />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* 2. TIPO CONTRATTO */}
+        <div className="space-y-3">
+          <label className="text-[10px] font-black text-slate-400 uppercase ml-6 tracking-widest">Tipo Contratto (Normativa)</label>
+          <select className="w-full p-8 bg-slate-50 rounded-[2.5rem] font-bold uppercase border-4 border-transparent focus:border-blue-600 outline-none appearance-none cursor-pointer" value={formDoc.contratto} onChange={e => setFormDoc({...formDoc, contratto: e.target.value})}>
+            <option value="INTERA">Cattedra Intera (18h)</option>
+            <option value="COMPLETAMENTO">Spezzone + Completamento Esterno</option>
+            <option value="SPEZZONE">Spezzone Solo Nostra Scuola</option>
+          </select>
         </div>
-      )}
+
+        {/* 3. ORE SETTIMANALI */}
+        <div className="space-y-3">
+          <label className="text-[10px] font-black text-slate-400 uppercase ml-6 tracking-widest">Ore Settimanali da noi</label>
+          <input type="number" className="w-full p-8 bg-slate-50 rounded-[2.5rem] font-bold border-4 border-transparent focus:border-blue-600 outline-none" value={formDoc.ore} onChange={e => setFormDoc({...formDoc, ore: Number(e.target.value)})} />
+        </div>
+      </div>
+
+      {/* 4. MESI DI SERVIZIO (Aggiunto!) */}
+      <div className="space-y-3">
+        <label className="text-[10px] font-black text-slate-400 uppercase ml-6 tracking-widest">Mesi di Servizio Previsti (es: 9 per anno intero)</label>
+        <input 
+          type="number" 
+          step="0.5"
+          max="9"
+          min="0.5"
+          className="w-full p-8 bg-slate-50 rounded-[2.5rem] font-bold border-4 border-transparent focus:border-blue-600 outline-none" 
+          value={formDoc.mesi} 
+          onChange={e => setFormDoc({...formDoc, mesi: Number(e.target.value)})} 
+        />
+        <p className="ml-6 text-[9px] font-bold text-slate-400 italic">*Il calcolo delle ore verrà riproporzionato se inferiore a 9 mesi.</p>
+      </div>
+
+      {/* ANTEPRIMA CALCOLO (Utile per l'Admin) */}
+      <div className="bg-blue-50 p-8 rounded-[3rem] border-2 border-blue-100 flex justify-around items-center">
+        <div className="text-center">
+          <p className="text-[9px] font-black text-blue-400 uppercase">Debito Comma A</p>
+          <p className="text-3xl font-black text-blue-800">
+            {formDoc.contratto === 'SPEZZONE' ? Math.floor(40 * (formDoc.mesi / 9)) : Math.floor(((formDoc.contratto === 'INTERA' ? 80 : (80/18)*formDoc.ore) * (formDoc.mesi/9)) / 2)}h
+          </p>
+        </div>
+        <div className="w-px h-10 bg-blue-200"></div>
+        <div className="text-center">
+          <p className="text-[9px] font-black text-blue-400 uppercase">Debito Comma B</p>
+          <p className="text-3xl font-black text-blue-800">
+             {formDoc.contratto === 'SPEZZONE' ? Math.ceil((40/18) * formDoc.ore * (formDoc.mesi/9)) : Math.ceil(((formDoc.contratto === 'INTERA' ? 80 : (80/18)*formDoc.ore) * (formDoc.mesi/9)) / 2)}h
+          </p>
+        </div>
+      </div>
+
+      <button onClick={saveDocente} className="w-full bg-blue-700 text-white p-10 rounded-[3rem] font-black text-2xl uppercase shadow-2xl hover:bg-slate-900 transition-all active:scale-95">
+        Conferma e Crea Accesso
+      </button>
+    </div>
+  </div>
+)}
+/* --- FINE BLOCCO NUOVO DOCENTE AGGIORNATO --- */
 
       {/* NUOVO IMPEGNO CON ELIMINAZIONE ATTIVITÀ */}
       {tab === 'impegni' && (
