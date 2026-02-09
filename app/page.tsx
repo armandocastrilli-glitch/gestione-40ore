@@ -146,58 +146,85 @@ function AdminPanel() {
       {/* LISTA DOCENTI CON INFO COMPLETE ED ELIMINAZIONE */}
       {tab === 'docenti' && !selDoc && (
         <div className="grid grid-cols-1 gap-6">
-          {data.docenti.map((d: any) => (
-  <div key={d.id} className="bg-white p-8 rounded-[3.5rem] border border-slate-100 shadow-sm flex flex-col md:flex-row items-center gap-10 hover:shadow-xl transition-all group">
-    {/* Parte Sinistra: Avatar e Nome */}
-    <div className="flex items-center gap-6 flex-1">
-      <div className="w-16 h-16 bg-slate-900 text-white rounded-3xl flex items-center justify-center font-black text-2xl italic shadow-lg group-hover:bg-blue-700 transition-colors">
-        {d.nome[0]}
-      </div>
-      <div>
-        <h3 className="text-3xl font-black uppercase text-slate-800 italic tracking-tighter leading-none">{d.nome}</h3>
-        <div className="flex flex-wrap gap-3 mt-4">
-          <span className="bg-blue-50 text-blue-700 px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-100">
-            {d.contratto}
-          </span>
-          <span className="bg-emerald-50 text-emerald-600 px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-100">
-            Cod: {d.codice_accesso}
-          </span>
+         {data.docenti.map((d: any) => {
+  // LOGICA DI CALCOLO ISTANTANEA PER LA BARRA
+  const pianiDoc = data.piani.filter((p: any) => p.docente_id === d.id);
+  
+  const stats = {
+    pianA: pianiDoc.filter((p: any) => p.tipo === 'A').reduce((s, c) => s + c.ore_effettive, 0),
+    svoltA: pianiDoc.filter((p: any) => p.tipo === 'A' && p.presente).reduce((s, c) => s + c.ore_effettive, 0),
+    pianB: pianiDoc.filter((p: any) => p.tipo === 'B').reduce((s, c) => s + c.ore_effettive, 0),
+    svoltB: pianiDoc.filter((p: any) => p.tipo === 'B' && p.presente).reduce((s, c) => s + c.ore_effettive, 0),
+  };
+
+  return (
+    <div key={d.id} className="bg-white p-8 rounded-[3.5rem] border border-slate-100 shadow-sm flex flex-col xl:flex-row items-center gap-8 hover:shadow-xl transition-all group">
+      
+      {/* 1. ANAGRAFICA */}
+      <div className="flex items-center gap-6 min-w-[250px]">
+        <div className="w-14 h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center font-black text-xl italic group-hover:bg-blue-700 transition-all">
+          {d.nome[0]}
+        </div>
+        <div>
+          <h3 className="text-xl font-black uppercase text-slate-800 leading-none mb-2">{d.nome}</h3>
+          <p className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-lg inline-block uppercase tracking-widest">
+            Code: {d.codice_accesso}
+          </p>
         </div>
       </div>
-    </div>
 
-    {/* Parte Centrale: Dati Tecnici */}
-    <div className="flex gap-8 border-x border-slate-50 px-10">
-      <div className="text-center">
-        <p className="text-[9px] font-black text-slate-300 uppercase mb-1">Ore/Sett</p>
-        <p className="text-xl font-black text-slate-700">{d.ore_settimanali}h</p>
-      </div>
-      <div className="text-center">
-        <p className="text-[9px] font-black text-slate-300 uppercase mb-1">Servizio</p>
-        <p className="text-xl font-black text-slate-700">{d.mesi_servizio}m</p>
-      </div>
-    </div>
+      {/* 2. CONTATORI COMMA A */}
+      <div className="flex-1 grid grid-cols-2 gap-4 border-x border-slate-50 px-8 w-full">
+        <div className="bg-blue-50/50 p-4 rounded-[2rem] border border-blue-100">
+          <div className="flex justify-between items-center mb-2 px-2">
+            <span className="text-[10px] font-black text-blue-800 uppercase italic">Comma A</span>
+            <span className="text-[10px] font-bold text-slate-400">{d.ore_a_dovute}h Tot.</span>
+          </div>
+          <div className="flex justify-around items-end">
+            <div className="text-center">
+              <p className="text-[8px] font-bold text-slate-400 uppercase">Pian.</p>
+              <p className="text-lg font-black text-blue-600 leading-none">{stats.pianA}h</p>
+            </div>
+            <div className="w-px h-6 bg-blue-200"></div>
+            <div className="text-center">
+              <p className="text-[8px] font-bold text-slate-400 uppercase">Svolte</p>
+              <p className="text-lg font-black text-emerald-600 leading-none">{stats.svoltA}h</p>
+            </div>
+          </div>
+        </div>
 
-    {/* Parte Destra: Azioni */}
-    <div className="flex items-center gap-4">
-      <button 
-        onClick={() => setSelDoc(d)} 
-        className="bg-slate-900 text-white px-10 py-5 rounded-[2rem] font-black text-[10px] uppercase tracking-widest shadow-lg hover:bg-blue-800 hover:scale-105 transition-all"
-      >
-        Gestisci Staff
-      </button>
-      <button 
-        onClick={() => deleteDocente(d.id)} 
-        className="bg-white text-slate-300 p-5 rounded-[2rem] border-2 border-slate-50 hover:border-red-100 hover:text-red-500 hover:bg-red-50 transition-all"
-        title="Elimina Docente"
-      >
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-        </svg>
-      </button>
+        {/* 3. CONTATORI COMMA B */}
+        <div className="bg-indigo-50/50 p-4 rounded-[2rem] border border-indigo-100">
+          <div className="flex justify-between items-center mb-2 px-2">
+            <span className="text-[10px] font-black text-indigo-800 uppercase italic">Comma B</span>
+            <span className="text-[10px] font-bold text-slate-400">{d.ore_b_dovute}h Tot.</span>
+          </div>
+          <div className="flex justify-around items-end">
+            <div className="text-center">
+              <p className="text-[8px] font-bold text-slate-400 uppercase">Pian.</p>
+              <p className="text-lg font-black text-indigo-600 leading-none">{stats.pianB}h</p>
+            </div>
+            <div className="w-px h-6 bg-indigo-200"></div>
+            <div className="text-center">
+              <p className="text-[8px] font-bold text-slate-400 uppercase">Svolte</p>
+              <p className="text-lg font-black text-emerald-600 leading-none">{stats.svoltB}h</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 4. AZIONI */}
+      <div className="flex items-center gap-3">
+        <button onClick={() => setSelDoc(d)} className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 shadow-md transition-all">
+          Dettagli
+        </button>
+        <button onClick={() => deleteDocente(d.id)} className="p-4 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+        </button>
+      </div>
     </div>
-  </div>
-))}
+  );
+})}
         </div>
       )}
 
