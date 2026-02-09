@@ -404,10 +404,11 @@ function AdminPanel() {
 function DocentePanel({ docente, adminMode = false }: any) {
   const [impegni, setImpegni] = useState<any[]>([]);
   const [piani, setPiani] = useState<any[]>([]);
-  const [tab, setTab] = useState('p'); // 'p' = pianificazione, 'r' = report
+  const [tab, setTab] = useState('p');
 
   const load = useCallback(async () => {
     const [i, p] = await Promise.all([
+      // Carichiamo gli impegni ordinandoli dal più recente (in alto) al più lontano nel passato
       supabase.from('impegni').select('*').order('data', { ascending: false }),
       supabase.from('piani').select('*').eq('docente_id', docente.id)
     ]);
@@ -434,7 +435,7 @@ function DocentePanel({ docente, adminMode = false }: any) {
       {/* HEADER ORIZZONTALE SNELLO */}
       <div className="bg-white p-6 rounded-[2rem] shadow-xl border border-slate-100 flex flex-wrap items-center justify-between gap-6 mb-10">
         <div className="flex items-center gap-6">
-          <div className="w-14 h-14 bg-slate-900 rounded-2xl flex items-center justify-center text-white font-black italic text-2xl shadow-lg">
+          <div className="w-14 h-14 bg-blue-800 rounded-2xl flex items-center justify-center text-white font-black italic text-2xl shadow-lg">
             {docente.nome[0]}
           </div>
           <div>
@@ -451,24 +452,24 @@ function DocentePanel({ docente, adminMode = false }: any) {
           <AdminStatMini label="COMMA B" val={stats.vB} max={docente.ore_b_dovute} col="indigo" pian={stats.pB} />
           <button 
             onClick={() => setTab(tab === 'p' ? 'r' : 'p')}
-            className="ml-4 h-14 px-8 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-[0.2em] hover:bg-blue-800 transition-all shadow-lg"
+            className="ml-4 h-14 px-8 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-[0.2em] hover:bg-blue-700 transition-all shadow-lg"
           >
-            {tab === 'p' ? 'Vedi Report PDF' : 'Torna al Registro'}
+            {tab === 'p' ? 'Report Ufficiale' : 'Registro Attività'}
           </button>
         </div>
       </div>
 
       {tab === 'p' ? (
-        <div className="space-y-3">
-          {/* INTESTAZIONE TABELLA */}
-          <div className="flex items-center px-8 py-2 text-[9px] font-black text-slate-400 uppercase tracking-widest">
-            <div className="w-24 text-center">Data</div>
-            <div className="flex-1 px-6">Dettaglio Attività</div>
-            <div className="w-48 text-center">Ore Effettive</div>
-            <div className="w-32 text-right">Stato</div>
+        <div className="flex flex-col gap-2.5">
+          {/* INTESTAZIONE MINIMALE */}
+          <div className="flex items-center px-10 py-1 text-[8px] font-black text-slate-300 uppercase tracking-[0.3em]">
+            <div className="w-20">Data</div>
+            <div className="flex-1 px-10">Attività Programmata</div>
+            <div className="w-40 text-center">Ore Svolte</div>
+            <div className="w-24 text-right">Esito</div>
           </div>
 
-          {/* LISTA STRISCE ORIZZONTALI */}
+          {/* LISTA STRISCE ORIZZONTALI (Ordinate: Recentissime -> Passate) */}
           {impegni.map(i => {
             const p = piani.find(x => x.impegno_id === i.id);
             const { gg, mm, aaaa } = formatDate(i.data);
@@ -476,41 +477,39 @@ function DocentePanel({ docente, adminMode = false }: any) {
             return (
               <div 
                 key={i.id} 
-                className={`group bg-white rounded-2xl border border-slate-100 flex items-center p-3 hover:shadow-md transition-all border-l-[8px] ${
+                className={`group bg-white rounded-xl border border-slate-100 flex items-center p-2.5 hover:shadow-md transition-all border-l-[10px] ${
                   p?.presente ? 'border-l-emerald-500' : i.tipo === 'A' ? 'border-l-blue-600' : 'border-l-indigo-600'
                 }`}
               >
-                {/* DATA */}
-                <div className="w-24 flex flex-col items-center justify-center border-r border-slate-50">
+                {/* DATA FORMATO GG/MM/AAAA */}
+                <div className="w-20 flex flex-col items-center justify-center border-r border-slate-50 py-1">
                   <span className="text-xl font-black text-slate-800 leading-none">{gg}</span>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase">{mm}/{aaaa}</span>
+                  <span className="text-[9px] font-bold text-slate-400 uppercase leading-none mt-1">{mm}/{aaaa}</span>
                 </div>
 
-                {/* INFO */}
-                <div className="flex-1 px-8">
+                {/* INFO ATTIVITÀ */}
+                <div className="flex-1 px-10">
                   <div className="flex items-center gap-3">
-                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded ${i.tipo === 'A' ? 'bg-blue-50 text-blue-700' : 'bg-indigo-50 text-indigo-700'}`}>
+                    <span className={`text-[7px] font-black px-1.5 py-0.5 rounded ${i.tipo === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'}`}>
                       COMMA {i.tipo}
                     </span>
-                    <h4 className="font-black text-sm uppercase tracking-tight text-slate-700 group-hover:text-blue-700 transition-colors">
+                    <h4 className="font-black text-[13px] uppercase tracking-tight text-slate-700">
                       {i.titolo}
                     </h4>
                   </div>
-                  <p className="text-[9px] font-bold text-slate-300 uppercase mt-1">Limite attività: {i.durata_max}h</p>
                 </div>
 
-                {/* CONTROLLI ORE */}
-                <div className="w-48 flex items-center justify-center gap-3">
-                  <div className="relative">
+                {/* AZIONI E ORE */}
+                <div className="w-48 flex items-center justify-end gap-4 border-r border-slate-50 pr-6">
+                  <div className="flex flex-col items-center">
                     <input 
                       id={`h-${i.id}`}
                       type="number"
                       step="0.5"
                       defaultValue={p ? p.ore_effettive : i.durata_max}
                       disabled={p?.presente && !adminMode}
-                      className="w-16 p-2 bg-slate-50 rounded-xl font-black text-center text-slate-800 border-2 border-transparent focus:border-blue-500 outline-none transition-all"
+                      className="w-14 p-1.5 bg-slate-50 rounded-lg font-black text-center text-slate-800 border-2 border-transparent focus:border-blue-500 outline-none text-sm transition-all"
                     />
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[7px] font-black text-slate-300 uppercase">H. Svolte</span>
                   </div>
                   
                   <button 
@@ -524,8 +523,8 @@ function DocentePanel({ docente, adminMode = false }: any) {
                       }
                       load();
                     }}
-                    className={`h-10 px-5 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all ${
-                      p ? 'bg-red-50 text-red-500 hover:bg-red-500 hover:text-white' : 'bg-slate-900 text-white hover:bg-blue-700 shadow-md'
+                    className={`h-9 px-4 rounded-lg font-black text-[8px] uppercase tracking-widest transition-all ${
+                      p ? 'bg-red-50 text-red-500 border border-red-100 hover:bg-red-500 hover:text-white' : 'bg-slate-900 text-white hover:bg-blue-600 shadow-sm'
                     }`}
                   >
                     {p ? 'Rimuovi' : 'Dichiara'}
@@ -533,17 +532,16 @@ function DocentePanel({ docente, adminMode = false }: any) {
                 </div>
 
                 {/* STATO VALIDAZIONE */}
-                <div className="w-32 text-right pr-4">
+                <div className="w-32 flex flex-col items-center justify-center">
                   {p?.presente ? (
-                    <div className="flex flex-col items-end">
-                      <span className="text-[8px] font-black text-emerald-600 uppercase italic">Validato</span>
-                      <div className="h-1.5 w-12 bg-emerald-500 rounded-full mt-1"></div>
+                    <div className="flex flex-col items-center">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse mb-1"></div>
+                      <span className="text-[7px] font-black text-emerald-600 uppercase tracking-tighter">Validato</span>
                     </div>
+                  ) : p ? (
+                    <span className="text-[7px] font-black text-orange-500 uppercase tracking-tighter italic">In Verifica</span>
                   ) : (
-                    <div className="flex flex-col items-end opacity-20">
-                      <span className="text-[8px] font-black text-slate-400 uppercase italic">In attesa</span>
-                      <div className="h-1.5 w-12 bg-slate-200 rounded-full mt-1"></div>
-                    </div>
+                    <span className="text-[7px] font-bold text-slate-200 uppercase tracking-tighter">Da Compilare</span>
                   )}
                 </div>
               </div>
@@ -551,42 +549,45 @@ function DocentePanel({ docente, adminMode = false }: any) {
           })}
         </div>
       ) : (
-        /* REPORT PDF */
+        /* REPORT PDF (SNELLO) */
         <div className="bg-white p-12 rounded-[3rem] shadow-2xl border animate-in zoom-in">
-          <div className="flex justify-between items-end border-b-4 border-slate-900 pb-8 mb-10">
+          <div className="flex justify-between items-end border-b-4 border-slate-900 pb-6 mb-10">
             <div>
-              <h1 className="text-5xl font-black uppercase italic tracking-tighter">Report Attività</h1>
-              <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.3em] mt-2">Dichiarazione ufficiale ore svolte</p>
+              <h1 className="text-5xl font-black uppercase italic tracking-tighter">Certificazione Ore</h1>
+              <p className="text-slate-400 font-bold uppercase text-[9px] tracking-[0.4em] mt-1">S-PRO Secure Academic Engine</p>
             </div>
             <div className="text-right">
-              <p className="font-black text-xl text-slate-900">{docente.nome}</p>
-              <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">{docente.codice_accesso}</p>
+              <p className="font-black text-2xl text-slate-900 leading-none">{docente.nome}</p>
+              <p className="text-[10px] font-black text-blue-600 uppercase mt-2">ID: {docente.codice_accesso}</p>
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-2">
             {piani.filter(p => p.presente).map(p => {
               const i = impegni.find(x => x.id === p.impegno_id);
               const { gg, mm, aaaa } = formatDate(i?.data || '');
               return (
-                <div key={p.id} className="flex justify-between items-center py-4 border-b border-slate-50 px-4">
-                  <div>
-                    <p className="font-black text-slate-700 uppercase italic leading-none">{i?.titolo}</p>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase mt-1.5">{gg}/{mm}/{aaaa} — COMMA {p.tipo}</p>
+                <div key={p.id} className="flex justify-between items-center py-3 border-b border-slate-50 px-6 hover:bg-slate-50">
+                  <div className="flex gap-10 items-center">
+                    <span className="font-mono text-xs text-slate-400">{gg}/{mm}/{aaaa}</span>
+                    <p className="font-black text-slate-700 uppercase italic text-sm">{i?.titolo}</p>
                   </div>
-                  <p className="font-black text-2xl text-blue-800 italic">{p.ore_effettive.toFixed(1)}H</p>
+                  <p className="font-black text-xl text-blue-800 italic">{p.ore_effettive.toFixed(1)} H</p>
                 </div>
               );
             })}
           </div>
 
-          <div className="mt-10 bg-slate-900 rounded-2xl p-8 flex justify-between items-center text-white">
-            <span className="font-black uppercase text-sm tracking-[0.2em]">Totale Ore Maturate</span>
-            <span className="text-5xl font-black italic text-blue-400">{(stats.vA + stats.vB).toFixed(1)}H</span>
+          <div className="mt-12 bg-slate-900 rounded-2xl p-8 flex justify-between items-center text-white">
+            <div>
+              <p className="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em]">Totale Ore Validato</p>
+              <p className="text-xs text-slate-400 italic">Comprensivo di Comma A e Comma B</p>
+            </div>
+            <span className="text-6xl font-black italic text-blue-400">{(stats.vA + stats.vB).toFixed(1)} H</span>
           </div>
 
-          <button onClick={() => window.print()} className="w-full mt-10 h-20 bg-blue-700 text-white rounded-2xl font-black text-xl uppercase tracking-widest shadow-xl print:hidden hover:bg-blue-800 transition-all">
-            Stampa Certificazione
+          <button onClick={() => window.print()} className="w-full mt-10 h-16 bg-blue-700 text-white rounded-2xl font-black text-lg uppercase tracking-widest shadow-xl print:hidden hover:bg-blue-800 transition-all">
+            Salva come PDF / Stampa
           </button>
         </div>
       )}
