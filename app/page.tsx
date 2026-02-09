@@ -368,10 +368,10 @@ function AdminPanel() {
         <input 
           type="file" 
           className="text-[9px] font-black uppercase text-slate-400 cursor-pointer file:bg-slate-900 file:text-white file:rounded-full file:px-6 file:py-2.5 file:border-0 hover:file:bg-blue-700" 
-          onChange={async (e) => {
+          onChange={async (e) => {const setLoading = (val: any) => {};
             const file = e.target.files?.[0];
             if(!file) return;
-            setLoading?(true);
+            setLoading(true);
             
             const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
             
