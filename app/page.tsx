@@ -97,24 +97,52 @@ function AdminPanel() {
     const { error } = await supabase.from('impegni').delete().eq('id', id);
     if(!error) { setActiveImp(null); loadData(); }
   };
-  const saveDocente = async () => {
-    if (!formDoc.nome) return alert("Inserire un nominativo.");
-    const cod = Math.random().toString(36).substring(2, 7).toUpperCase();
-    const baseOre = formDoc.contratto === 'INTERA' ? 80 : (80 / 18) * formDoc.ore;
-    const oreP = baseOre * (formDoc.mesi / 9);
-    
-    const { error } = await supabase.from('docenti').insert([{
-      nome: formDoc.nome, codice_accesso: cod, contratto: formDoc.contratto,
-      ore_settimanali: formDoc.ore, mesi_servizio: formDoc.mesi,
-      ore_a_dovute: Math.floor(oreP / 2), ore_b_dovute: Math.ceil(oreP / 2)
-    }]);
-    
-    if (!error) { 
-      alert("DOCENTE CREATO\nCODICE: " + cod); 
-      setTab('docenti'); 
-      loadData(); 
-    } else { alert("Errore: " + error.message); }
-  };
+ const saveDocente = async () => {
+  if (!formDoc.nome) return alert("Inserire un nominativo.");
+  
+  const cod = Math.random().toString(36).substring(2, 7).toUpperCase();
+  
+  // LOGICA DI CALCOLO NORMATIVA
+  let oreATot = 0;
+  let oreBTot = 0;
+
+  if (formDoc.contratto === 'INTERA') {
+    // Caso 1: Cattedra intera (sempre 40 + 40 parametrate sui mesi)
+    const baseIntera = 80 * (formDoc.mesi / 9);
+    oreATot = Math.floor(baseIntera / 2);
+    oreBTot = Math.ceil(baseIntera / 2);
+  } 
+  else if (formDoc.contratto === 'COMPLETAMENTO') {
+    // Caso 2: Spezzone con completamento esterno (proporzionale a ore e mesi)
+    const baseProporzionale = (80 / 18) * formDoc.ore * (formDoc.mesi / 9);
+    oreATot = Math.floor(baseProporzionale / 2);
+    oreBTot = Math.ceil(baseProporzionale / 2);
+  } 
+  else if (formDoc.contratto === 'SPEZZONE') {
+    // Caso 3: Spezzone solo su nostra scuola
+    // Comma A: Sempre 40h (parametrato solo sui mesi)
+    oreATot = Math.floor(40 * (formDoc.mesi / 9));
+    // Comma B: Proporzionale alle ore settimanali e mesi
+    const baseB = (40 / 18) * formDoc.ore * (formDoc.mesi / 9);
+    oreBTot = Math.ceil(baseB);
+  }
+
+  const { error } = await supabase.from('docenti').insert([{
+    nome: formDoc.nome, 
+    codice_accesso: cod, 
+    contratto: formDoc.contratto,
+    ore_settimanali: formDoc.ore, 
+    mesi_servizio: formDoc.mesi,
+    ore_a_dovute: oreATot, 
+    ore_b_dovute: oreBTot
+  }]);
+  
+  if (!error) { 
+    alert(`DOCENTE CREATO\nCodice: ${cod}\nComma A: ${oreATot}h\nComma B: ${oreBTot}h`); 
+    setTab('docenti'); 
+    loadData(); 
+  } else { alert("Errore: " + error.message); }
+};
 
   const saveImpegno = async () => {
     if (!formImp.titolo || !formImp.data) return alert("Dati incompleti.");
@@ -240,11 +268,15 @@ function AdminPanel() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-3">
                 <label className="text-[10px] font-black text-slate-400 uppercase ml-6 tracking-widest">Tipo Contratto</label>
-                <select className="w-full p-8 bg-slate-50 rounded-[2.5rem] font-bold uppercase border-4 border-transparent focus:border-blue-600 outline-none appearance-none cursor-pointer" value={formDoc.contratto} onChange={e => setFormDoc({...formDoc, contratto: e.target.value})}>
-                  <option value="INTERA">CATTEDRA INTERA (18H)</option>
-                  <option value="COMPLETAMENTO">COMPLETAMENTO</option>
-                  <option value="SPEZZONE">SPEZZONE / PART-TIME</option>
-                </select>
+                <select 
+  className="w-full p-8 bg-slate-50 rounded-[2.5rem] font-bold uppercase border-4 border-transparent focus:border-blue-600 outline-none appearance-none cursor-pointer" 
+  value={formDoc.contratto} 
+  onChange={e => setFormDoc({...formDoc, contratto: e.target.value})}
+>
+  <option value="INTERA">Cattedra Intera (18h)</option>
+  <option value="COMPLETAMENTO">Spezzone + Completamento Esterno</option>
+  <option value="SPEZZONE">Spezzone Solo Nostra Scuola</option>
+</select>
               </div>
               <div className="space-y-3">
                 <label className="text-[10px] font-black text-slate-400 uppercase ml-6 tracking-widest">Ore Settimanali</label>
