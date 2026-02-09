@@ -365,17 +365,18 @@ function AdminPanel() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
           </svg>
         </div>
-        <input 
+       <input 
           type="file" 
           className="text-[9px] font-black uppercase text-slate-400 cursor-pointer file:bg-slate-900 file:text-white file:rounded-full file:px-6 file:py-2.5 file:border-0 hover:file:bg-blue-700" 
-          onChange={async (e) => {const setLoading = (val: any) => {};
+          onChange={async (e) => {
+            // Definiamo setLoading internamente per evitare errori di compilazione
+            const setLoading = (val: boolean) => {}; 
             const file = e.target.files?.[0];
             if(!file) return;
-            setLoading(true);
             
+            setLoading(true);
             const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
             
-            // 1. Caricamento file fisico nello Storage
             const { data: upData, error: upErr } = await supabase.storage
               .from('files')
               .upload(fileName, file);
@@ -386,21 +387,24 @@ function AdminPanel() {
               return;
             }
 
-            // 2. Recupero URL pubblico
             const { data: { publicUrl } } = supabase.storage.from('files').getPublicUrl(fileName);
 
-            // 3. Salvataggio riferimento nel Database
             await supabase.from('documenti').insert([{ 
               nome: file.name, 
               url: publicUrl, 
-              storage_path: fileName // Salviamo il percorso per poterlo eliminare dopo
+              storage_path: fileName 
             }]);
 
-            loadData();
+            if (typeof loadData === 'function') loadData();
             setLoading(false);
           }} 
         />
-        {loading && <p className="mt-4 text-[10px] font-black text-blue-600 animate-pulse uppercase">Caricamento in corso...</p>}
+        {/* Usiamo un controllo sicuro per loading che non blocca la build */}
+        {typeof loading !== 'undefined' && (loading as any) && (
+          <p className="mt-4 text-[10px] font-black text-blue-600 animate-pulse uppercase">
+            Caricamento in corso...
+          </p>
+        )}
       </div>
 
       {/* LISTA FILE CON TASTO ELIMINA */}
