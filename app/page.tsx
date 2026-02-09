@@ -407,14 +407,23 @@ function DocentePanel({ docente, adminMode = false }: any) {
   const [tab, setTab] = useState('p');
 
   const load = useCallback(async () => {
+    // Carichiamo gli impegni ordinati per data decrescente (dal più recente)
     const [i, p] = await Promise.all([
       supabase.from('impegni').select('*').order('data', { ascending: false }),
       supabase.from('piani').select('*').eq('docente_id', docente.id)
     ]);
-    setImpegni(i.data || []); setPiani(p.data || []);
+    setImpegni(i.data || []); 
+    setPiani(p.data || []);
   }, [docente.id]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Funzione per formattare la data in GG/MM/AAAA
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "";
+    const [year, month, day] = dateString.split("-");
+    return `${day}/${month}/${year}`;
+  };
 
   const stats = {
     vA: piani.filter(p => p.tipo === 'A' && p.presente).reduce((s, c) => s + c.ore_effettive, 0),
@@ -425,19 +434,22 @@ function DocentePanel({ docente, adminMode = false }: any) {
 
   return (
     <div className="space-y-8 max-w-[1200px] mx-auto">
+      {/* Header Profilo Docente */}
       <div className="bg-white p-8 rounded-[3rem] shadow-2xl border-t-[10px] border-blue-800 flex flex-wrap justify-between items-center gap-6">
         {!adminMode && (
           <div>
             <h2 className="text-4xl font-black uppercase italic tracking-tighter text-slate-900 leading-none">{docente.nome}</h2>
-            <p className="text-blue-600 font-black uppercase text-[10px] tracking-widest mt-3">{docente.contratto} • {docente.ore_settimanali}H SETT.</p>
+            <p className="text-blue-600 font-black uppercase text-[10px] tracking-widest mt-3">
+              {docente.contratto} • {docente.ore_settimanali}H SETT. • {docente.mesi_servizio} MESI
+            </p>
           </div>
         )}
         <div className="flex gap-3">
            <AdminStatMini label="COMMA A" val={stats.vA} max={docente.ore_a_dovute} col="blue" pian={stats.pA} />
            <AdminStatMini label="COMMA B" val={stats.vB} max={docente.ore_b_dovute} col="indigo" pian={stats.pB} />
         </div>
-        <button onClick={() => setTab(tab === 'p' ? 'r' : 'p')} className="bg-slate-900 text-white px-8 py-4 rounded-full font-black text-[9px] uppercase tracking-widest shadow-lg">
-          {tab === 'p' ? 'Vedi Report PDF' : 'Torna a Piano Ore'}
+        <button onClick={() => setTab(tab === 'p' ? 'r' : 'p')} className="bg-slate-900 text-white px-8 py-4 rounded-full font-black text-[9px] uppercase tracking-widest shadow-lg hover:bg-blue-700 transition-colors">
+          {tab === 'p' ? 'Genera Report PDF' : 'Torna alla Pianificazione'}
         </button>
       </div>
 
@@ -446,30 +458,59 @@ function DocentePanel({ docente, adminMode = false }: any) {
           {impegni.map(i => {
             const p = piani.find(x => x.impegno_id === i.id);
             return (
-              <div key={i.id} className={`p-8 bg-white rounded-[2.5rem] border-4 transition-all flex flex-col justify-between min-h-[280px] ${p ? 'border-blue-700 shadow-xl' : 'border-transparent shadow-sm'}`}>
+              <div key={i.id} className={`p-8 bg-white rounded-[2.5rem] border-4 transition-all flex flex-col justify-between min-h-[280px] ${p ? 'border-blue-700 shadow-xl scale-[1.02]' : 'border-transparent shadow-sm opacity-90'}`}>
                 <div>
                   <div className="flex justify-between items-start mb-5">
-                    <span className={`px-3 py-1 rounded-full font-black text-[8px] uppercase ${i.tipo === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'}`}>COMMA {i.tipo}</span>
-                    {p?.presente && <span className="bg-emerald-500 text-white px-3 py-1 rounded-full font-black text-[8px]">VALIDO</span>}
+                    <span className={`px-3 py-1 rounded-full font-black text-[8px] uppercase ${i.tipo === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'}`}>
+                      COMMA {i.tipo}
+                    </span>
+                    {p?.presente && (
+                      <span className="bg-emerald-500 text-white px-3 py-1 rounded-full font-black text-[8px] animate-pulse">
+                        VALIDATO
+                      </span>
+                    )}
                   </div>
-                  <h4 className="font-black uppercase text-xl tracking-tighter leading-tight text-slate-800 mb-1.5">{i.titolo}</h4>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase italic">{i.data}</p>
+                  <h4 className="font-black uppercase text-xl tracking-tighter leading-tight text-slate-800 mb-2">{i.titolo}</h4>
+                  <div className="flex items-center gap-2">
+                    <svg className="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    <p className="text-[11px] font-black text-slate-500 uppercase tracking-tighter">
+                      {formatDate(i.data)}
+                    </p>
+                  </div>
                 </div>
+
                 <div className="mt-6 pt-6 border-t-2 border-slate-50 flex items-center gap-4">
                    <div className="text-center">
-                     <p className="text-[7px] font-black text-slate-300 uppercase mb-1.5">Ore</p>
-                     <input id={`h-${i.id}`} type="number" step="0.5" defaultValue={p ? p.ore_effettive : i.durata_max} disabled={p?.presente && !adminMode} className="w-12 p-3 bg-slate-100 rounded-xl font-black text-xl text-center outline-none" />
+                     <p className="text-[7px] font-black text-slate-300 uppercase mb-1.5 text-center">Ore</p>
+                     <input 
+                        id={`h-${i.id}`} 
+                        type="number" 
+                        step="0.5" 
+                        defaultValue={p ? p.ore_effettive : i.durata_max} 
+                        disabled={p?.presente && !adminMode} 
+                        className="w-14 p-3 bg-slate-100 rounded-xl font-black text-xl text-center outline-none focus:bg-blue-50 focus:text-blue-700 transition-colors" 
+                      />
                    </div>
                    <button 
                     onClick={async () => {
                       const h = (document.getElementById(`h-${i.id}`) as HTMLInputElement).value;
-                      if(p) { if(p.presente && !adminMode) return; await supabase.from('piani').delete().eq('id', p.id); }
-                      else { await supabase.from('piani').insert([{ docente_id: docente.id, impegno_id: i.id, ore_effettive: Number(h), tipo: i.tipo }]); }
+                      if(p) { 
+                        if(p.presente && !adminMode) return; 
+                        await supabase.from('piani').delete().eq('id', p.id); 
+                      }
+                      else { 
+                        await supabase.from('piani').insert([{ 
+                          docente_id: docente.id, 
+                          impegno_id: i.id, 
+                          ore_effettive: Number(h), 
+                          tipo: i.tipo 
+                        }]); 
+                      }
                       load();
                     }}
-                    className={`flex-1 py-4 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest shadow-xl transition-all ${p ? 'bg-red-50 text-red-500 border-2 border-red-100' : 'bg-slate-900 text-white hover:bg-blue-800'}`}
+                    className={`flex-1 py-4 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest shadow-xl transition-all ${p ? 'bg-red-50 text-red-500 border-2 border-red-100 hover:bg-red-500 hover:text-white' : 'bg-slate-900 text-white hover:bg-blue-800'}`}
                    >
-                     {p ? 'Elimina' : 'Dichiara'}
+                     {p ? 'Rimuovi Piano' : 'Pianifica Ore'}
                    </button>
                 </div>
               </div>
@@ -477,26 +518,38 @@ function DocentePanel({ docente, adminMode = false }: any) {
           })}
         </div>
       ) : (
-        <div className="bg-white p-16 rounded-[4rem] shadow-2xl border print:border-none print:shadow-none animate-in zoom-in">
-           <h1 className="text-6xl font-black uppercase italic tracking-tighter border-b-8 border-slate-900 pb-8 mb-12">CERTIFICATO</h1>
+        /* Sezione Report PDF (invariata nel contenuto, ma con date formattate) */
+        <div className="bg-white p-16 rounded-[4rem] shadow-2xl border animate-in zoom-in">
+           <div className="flex justify-between items-start border-b-8 border-slate-900 pb-8 mb-12">
+             <h1 className="text-6xl font-black uppercase italic tracking-tighter">REPORT ORE</h1>
+             <div className="text-right">
+               <p className="font-black text-xl uppercase leading-none">{docente.nome}</p>
+               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Situazione al {new Date().toLocaleDateString('it-IT')}</p>
+             </div>
+           </div>
            <table className="w-full">
              <tbody className="divide-y-4 divide-slate-50">
                {piani.filter(p => p.presente).map(p => {
                  const i = impegni.find(x => x.id === p.impegno_id);
                  return (
-                   <tr key={p.id}>
-                     <td className="py-8 font-black uppercase text-xl italic tracking-tighter text-slate-700">{i?.titolo}</td>
+                   <tr key={p.id} className="hover:bg-slate-50 transition-colors">
+                     <td className="py-8">
+                        <p className="font-black uppercase text-xl italic tracking-tighter text-slate-700 leading-none">{i?.titolo}</p>
+                        <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase">{formatDate(i?.data)} — COMMA {p.tipo}</p>
+                     </td>
                      <td className="py-8 text-right font-black text-4xl italic text-blue-800 tracking-tighter">{p.ore_effettive.toFixed(1)}H</td>
                    </tr>
                  );
                })}
                <tr className="bg-slate-900 text-white">
-                 <td className="p-10 font-black uppercase text-2xl italic tracking-widest">Totale Validato</td>
+                 <td className="p-10 font-black uppercase text-2xl italic tracking-widest">Totale Ore Validato</td>
                  <td className="p-10 text-right font-black text-7xl italic text-blue-400 tracking-tighter">{(stats.vA + stats.vB).toFixed(1)}H</td>
                </tr>
              </tbody>
            </table>
-           <button onClick={() => window.print()} className="w-full mt-12 bg-blue-700 text-white p-10 rounded-[3rem] font-black text-3xl uppercase shadow-2xl print:hidden hover:bg-blue-800">Stampa / PDF</button>
+           <button onClick={() => window.print()} className="w-full mt-12 bg-blue-700 text-white p-10 rounded-[3rem] font-black text-3xl uppercase shadow-2xl print:hidden hover:bg-blue-800 transition-all">
+             Invia alla stampante
+           </button>
         </div>
       )}
     </div>
