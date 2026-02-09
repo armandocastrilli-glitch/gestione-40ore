@@ -369,12 +369,9 @@ function AdminPanel() {
           type="file" 
           className="text-[9px] font-black uppercase text-slate-400 cursor-pointer file:bg-slate-900 file:text-white file:rounded-full file:px-6 file:py-2.5 file:border-0 hover:file:bg-blue-700" 
           onChange={async (e) => {
-            // Definiamo setLoading internamente per evitare errori di compilazione
-            const setLoading = (val: boolean) => {}; 
             const file = e.target.files?.[0];
             if(!file) return;
             
-            setLoading(true);
             const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
             
             const { data: upData, error: upErr } = await supabase.storage
@@ -383,7 +380,6 @@ function AdminPanel() {
 
             if(upErr) {
               alert("Errore Storage: " + upErr.message);
-              setLoading(false);
               return;
             }
 
@@ -395,12 +391,12 @@ function AdminPanel() {
               storage_path: fileName 
             }]);
 
-            if (typeof loadData === 'function') loadData();
-            setLoading(false);
+            if (typeof (window as any).loadData === 'function') (window as any).loadData();
+            else window.location.reload(); // Se non trova la funzione, ricarica la pagina per mostrare i file
           }} 
         />
-        {/* Usiamo un controllo sicuro per loading che non blocca la build */}
-        {typeof loading !== 'undefined' && (loading as any) && (
+        {/* Usiamo window per evitare l'errore 'Cannot find name loading' */}
+        {(window as any).loading === true && (
           <p className="mt-4 text-[10px] font-black text-blue-600 animate-pulse uppercase">
             Caricamento in corso...
           </p>
