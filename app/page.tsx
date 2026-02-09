@@ -256,7 +256,7 @@ function AdminPanel() {
         </div>
       )}
 
-    /* --- INIZIO BLOCCO NUOVO DOCENTE AGGIORNATO --- */
+
 {tab === 'nuovo_doc' && (
   <div className="max-w-4xl mx-auto bg-white p-12 md:p-16 rounded-[5rem] shadow-2xl border animate-in zoom-in">
     <h2 className="text-4xl font-black mb-10 uppercase italic text-blue-800 tracking-tighter">Registrazione Staff</h2>
@@ -324,7 +324,7 @@ function AdminPanel() {
     </div>
   </div>
 )}
-/* --- FINE BLOCCO NUOVO DOCENTE AGGIORNATO --- */
+
 
       {/* NUOVO IMPEGNO CON ELIMINAZIONE ATTIVITÀ */}
       {tab === 'impegni' && (
