@@ -355,42 +355,100 @@ function AdminPanel() {
         </div>
       )}
 
-      {tab === 'documenti' && (
-        <div className="bg-white p-10 rounded-[3.5rem] shadow-2xl border animate-in zoom-in">
-          <div className="grid lg:grid-cols-2 gap-12">
-            <div className="bg-slate-50 p-10 rounded-[2.5rem] border-4 border-dashed border-slate-200 text-center flex flex-col items-center justify-center min-h-[250px]">
-              <div className="w-16 h-16 bg-blue-800 rounded-full flex items-center justify-center text-white mb-5 shadow-lg">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-              </div>
-              <input type="file" className="text-[9px] font-black uppercase text-slate-400 cursor-pointer file:bg-slate-900 file:text-white file:rounded-full file:px-6 file:py-2.5 file:border-0 hover:file:bg-blue-700" onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if(!file) return;
-                const path = `${Date.now()}_${file.name}`;
-                const { error: upErr } = await supabase.storage.from('files').upload(path, file);
-                if(upErr) return alert("ERRORE: Bucket 'files' mancante o non pubblico.");
-                const { data: { publicUrl } } = supabase.storage.from('files').getPublicUrl(path);
-                await supabase.from('documenti').insert([{ nome: file.name, url: publicUrl, storage_path: path }]);
-                loadData();
-              }} />
-            </div>
-            <div className="space-y-3">
-              <h3 className="text-[9px] font-black uppercase text-slate-300 mb-5 tracking-widest italic">Documenti Pubblicati</h3>
-              {data.docs.map((doc: any) => (
-                <div key={doc.id} className="p-5 bg-white border border-slate-100 rounded-[1.8rem] flex justify-between items-center shadow-sm hover:shadow-md transition-all">
-                   <div className="flex items-center gap-4">
-                     <div className="w-10 h-10 bg-red-50 text-red-600 rounded-xl flex items-center justify-center font-black text-[9px]">DOC</div>
-                     <span className="font-black uppercase text-[10px] text-slate-700 truncate max-w-[150px]">{doc.nome}</span>
-                   </div>
-                   <div className="flex gap-3">
-                     <a href={doc.url} target="_blank" className="bg-blue-50 text-blue-600 px-5 py-2 rounded-xl font-black text-[9px] uppercase hover:bg-blue-100 transition-colors">Apri</a>
-                     <button onClick={async () => { if(confirm("Eliminare?")) { await supabase.storage.from('files').remove([doc.storage_path]); await supabase.from('documenti').delete().eq('id', doc.id); loadData(); }}} className="text-red-500 font-black text-[9px] uppercase hover:underline">Elimina</button>
-                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
+{tab === 'documenti' && (
+  <div className="bg-white p-10 rounded-[3.5rem] shadow-2xl border animate-in zoom-in">
+    <div className="grid lg:grid-cols-2 gap-12">
+      {/* AREA CARICAMENTO */}
+      <div className="bg-slate-50 p-10 rounded-[2.5rem] border-4 border-dashed border-slate-200 text-center flex flex-col items-center justify-center min-h-[250px]">
+        <div className="w-16 h-16 bg-blue-800 rounded-full flex items-center justify-center text-white mb-5 shadow-lg">
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+          </svg>
         </div>
-      )}
+        <input 
+          type="file" 
+          className="text-[9px] font-black uppercase text-slate-400 cursor-pointer file:bg-slate-900 file:text-white file:rounded-full file:px-6 file:py-2.5 file:border-0 hover:file:bg-blue-700" 
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            if(!file) return;
+            setLoading(true);
+            
+            const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+            
+            // 1. Caricamento file fisico nello Storage
+            const { data: upData, error: upErr } = await supabase.storage
+              .from('files')
+              .upload(fileName, file);
+
+            if(upErr) {
+              alert("Errore Storage: " + upErr.message);
+              setLoading(false);
+              return;
+            }
+
+            // 2. Recupero URL pubblico
+            const { data: { publicUrl } } = supabase.storage.from('files').getPublicUrl(fileName);
+
+            // 3. Salvataggio riferimento nel Database
+            await supabase.from('documenti').insert([{ 
+              nome: file.name, 
+              url: publicUrl, 
+              storage_path: fileName // Salviamo il percorso per poterlo eliminare dopo
+            }]);
+
+            loadData();
+            setLoading(false);
+          }} 
+        />
+        {loading && <p className="mt-4 text-[10px] font-black text-blue-600 animate-pulse uppercase">Caricamento in corso...</p>}
+      </div>
+
+      {/* LISTA FILE CON TASTO ELIMINA */}
+      <div className="space-y-3">
+        <h3 className="text-[9px] font-black uppercase text-slate-300 mb-5 tracking-widest italic">Documenti Pubblicati</h3>
+        {data.docs.length === 0 && <p className="text-center py-10 text-slate-200 font-black uppercase text-[10px]">Nessun file presente</p>}
+        {data.docs.map((doc: any) => (
+          <div key={doc.id} className="p-5 bg-white border border-slate-100 rounded-[1.8rem] flex justify-between items-center shadow-sm hover:shadow-md transition-all group">
+             <div className="flex items-center gap-4">
+               <div className="w-10 h-10 bg-red-50 text-red-600 rounded-xl flex items-center justify-center font-black text-[9px]">PDF</div>
+               <span className="font-black uppercase text-[10px] text-slate-700 truncate max-w-[180px]">{doc.nome}</span>
+             </div>
+             <div className="flex gap-2">
+               <a 
+                 href={doc.url} 
+                 target="_blank" 
+                 rel="noreferrer"
+                 className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl font-black text-[9px] uppercase hover:bg-blue-600 hover:text-white transition-all"
+               >
+                 Apri
+               </a>
+               <button 
+                 onClick={async () => {
+                   if(confirm("Vuoi eliminare definitivamente questo documento?")) {
+                     // 1. Elimina il file fisico dallo Storage
+                     const { error: storageErr } = await supabase.storage
+                       .from('files')
+                       .remove([doc.storage_path]);
+                     
+                     if (storageErr) console.error("Errore rimozione file:", storageErr);
+
+                     // 2. Elimina il riferimento dal Database
+                     await supabase.from('documenti').delete().eq('id', doc.id);
+                     
+                     loadData();
+                   }
+                 }}
+                 className="bg-white text-slate-300 px-4 py-2 rounded-xl font-black text-[9px] uppercase hover:bg-red-500 hover:text-white transition-all border border-slate-100"
+               >
+                 Elimina
+               </button>
+             </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+)}
 
       {selDoc && (
         <div className="mt-12 border-t-[8px] border-slate-900 pt-12">
