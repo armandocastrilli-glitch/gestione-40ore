@@ -7,7 +7,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 );
 
-export default function SProV3_Evolution() {
+export default function SProV3_Ultimate() {
   const [user, setUser] = useState<any>(null);
   const [loginCode, setLoginCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -17,32 +17,31 @@ export default function SProV3_Evolution() {
     if (!code) return;
     setLoading(true);
     if (code === 'ADMIN123') {
-      setUser({ id: 'admin', nome: 'Direzione Strategica', role: 'admin' });
+      setUser({ id: 'admin', nome: 'Direzione Generale', role: 'admin' });
     } else {
       const { data, error } = await supabase.from('docenti').select('*').eq('codice_accesso', code).single();
       if (data) setUser(data);
-      else alert("Codice errato o utente non trovato.");
+      else alert("Credenziali non valide.");
     }
     setLoading(false);
   };
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#020617] flex items-center justify-center p-4">
-        <div className="bg-white p-10 md:p-16 rounded-[4rem] shadow-2xl w-full max-w-xl border-[16px] border-slate-100/50">
-          <div className="text-center mb-12">
-            <h1 className="text-7xl font-black italic tracking-[ -0.1em] text-blue-700 uppercase leading-none">S-PRO</h1>
-            <div className="h-2 w-24 bg-blue-700 mx-auto mt-4 rounded-full"></div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.6em] mt-6">Secure Access Gateway</p>
+      <div className="min-h-screen bg-[#020617] flex items-center justify-center p-6">
+        <div className="bg-white p-12 md:p-20 rounded-[5rem] shadow-[0_0_100px_rgba(0,0,0,0.5)] w-full max-w-2xl border-[20px] border-slate-100">
+          <div className="text-center mb-16">
+            <h1 className="text-8xl font-black italic tracking-[-0.15em] text-blue-800 uppercase leading-none">S-PRO</h1>
+            <p className="text-[11px] font-black text-slate-300 uppercase tracking-[0.8em] mt-8">Secure Management System</p>
           </div>
-          <div className="space-y-6">
+          <div className="space-y-8">
             <input 
-              type="text" placeholder="ENTER ACCESS CODE" 
-              className="w-full p-8 bg-slate-50 border-4 border-transparent focus:border-blue-600 rounded-[2.5rem] text-center text-4xl font-mono uppercase outline-none transition-all shadow-inner"
+              type="text" placeholder="ACCESS CODE" 
+              className="w-full p-10 bg-slate-50 border-4 border-transparent focus:border-blue-600 rounded-[3rem] text-center text-5xl font-mono uppercase outline-none transition-all shadow-inner placeholder:text-slate-200"
               value={loginCode} onChange={(e) => setLoginCode(e.target.value)}
             />
-            <button onClick={handleLogin} className="w-full bg-blue-600 text-white p-8 rounded-[2.5rem] font-black text-2xl hover:bg-slate-900 transition-all uppercase shadow-2xl shadow-blue-200 active:scale-95">
-              {loading ? 'Verifying...' : 'Authenticate'}
+            <button onClick={handleLogin} className="w-full bg-blue-700 text-white p-10 rounded-[3rem] font-black text-3xl uppercase shadow-2xl shadow-blue-200 active:scale-95 transition-transform">
+              {loading ? 'AUTHENTICATING...' : 'ENTER'}
             </button>
           </div>
         </div>
@@ -51,30 +50,30 @@ export default function SProV3_Evolution() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f1f5f9] text-slate-900 font-sans selection:bg-blue-200">
-      <header className="bg-white/90 backdrop-blur-2xl border-b border-slate-200 sticky top-0 z-[100] px-8 py-4 flex justify-between items-center shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-white font-black italic text-xl shadow-lg">S</div>
+    <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans">
+      <header className="bg-white/80 backdrop-blur-3xl border-b border-slate-200 sticky top-0 z-[100] px-10 py-5 flex justify-between items-center">
+        <div className="flex items-center gap-6">
+          <div className="w-16 h-16 bg-blue-800 rounded-[1.8rem] flex items-center justify-center text-white font-black italic text-3xl shadow-xl shadow-blue-100">S</div>
           <div>
-            <h2 className="text-md font-black uppercase tracking-tighter leading-none">{user.nome}</h2>
-            <p className="text-[8px] font-bold text-blue-600 uppercase tracking-widest mt-1">{user.role === 'admin' ? 'System Administrator' : 'Academic Staff'}</p>
+            <h2 className="text-xl font-black uppercase tracking-tighter leading-none">{user.nome}</h2>
+            <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mt-2">{user.role === 'admin' ? 'Master Administrator' : 'Staff Member'}</p>
           </div>
         </div>
-        <button onClick={() => setUser(null)} className="bg-white text-red-600 px-6 py-2 rounded-full font-black text-[10px] uppercase border-2 border-red-50 hover:bg-red-600 hover:text-white transition-all shadow-sm">Sign Out</button>
+        <button onClick={() => setUser(null)} className="bg-slate-900 text-white px-10 py-4 rounded-full font-black text-[11px] uppercase tracking-widest hover:bg-red-600 transition-colors shadow-lg">Logout Session</button>
       </header>
-      {user.role === 'admin' ? <AdminPanel /> : <DocentePanel docente={user} />}
+      {user.role === 'admin' ? <AdminModule /> : <DocenteModule docente={user} />}
     </div>
   );
 }
 
-function AdminPanel() {
+function AdminModule() {
   const [tab, setTab] = useState('docenti');
   const [data, setData] = useState({ docenti: [], impegni: [], piani: [], docs: [] });
   const [selDoc, setSelDoc] = useState<any>(null);
   const [activeImp, setActiveImp] = useState<string | null>(null);
   const [formDoc, setFormDoc] = useState({ nome: '', contratto: 'INTERA', ore: 18, mesi: 9 });
 
-  const refreshData = useCallback(async () => {
+  const loadData = useCallback(async () => {
     const [d, i, p, dc] = await Promise.all([
       supabase.from('docenti').select('*').order('nome'),
       supabase.from('impegni').select('*').order('data', { ascending: false }),
@@ -84,10 +83,10 @@ function AdminPanel() {
     setData({ docenti: d.data || [], impegni: i.data || [], piani: p.data || [], docs: dc.data || [] });
   }, []);
 
-  useEffect(() => { refreshData(); }, [refreshData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   const saveDocente = async () => {
-    if (!formDoc.nome) return alert("Missing Name");
+    if (!formDoc.nome) return;
     const cod = Math.random().toString(36).substring(2, 7).toUpperCase();
     const oreP = (formDoc.contratto === 'INTERA' ? 80 : (80 / 18) * formDoc.ore) * (formDoc.mesi / 9);
     const { error } = await supabase.from('docenti').insert([{
@@ -95,23 +94,16 @@ function AdminPanel() {
       ore_settimanali: formDoc.ore, mesi_servizio: formDoc.mesi,
       ore_a_dovute: Math.floor(oreP / 2), ore_b_dovute: Math.ceil(oreP / 2)
     }]);
-    if (!error) { alert("DOCENTE SALVATO - CODICE: " + cod); setTab('docenti'); refreshData(); }
-  };
-
-  const deleteImpegno = async (id: string) => {
-    if (!confirm("Eliminando l'impegno cancellerai anche tutte le ore pianificate dai docenti per questa data. Procedere?")) return;
-    await supabase.from('piani').delete().eq('impegno_id', id);
-    await supabase.from('impegni').delete().eq('id', id);
-    refreshData();
+    if (!error) { alert("CODICE DOCENTE: " + cod); setTab('docenti'); loadData(); }
   };
 
   return (
-    <main className="max-w-[1600px] mx-auto p-6 md:p-10">
-      <nav className="flex flex-wrap gap-3 mb-12 justify-center">
+    <main className="max-w-[1700px] mx-auto p-8 lg:p-12">
+      <nav className="flex flex-wrap gap-4 mb-16 justify-center">
         {['docenti', 'nuovo_doc', 'impegni', 'appello', 'documenti'].map(t => (
           <button 
             key={t} onClick={() => {setTab(t); setSelDoc(null)}}
-            className={`px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all shadow-sm border-2 ${tab === t ? 'bg-blue-600 border-blue-600 text-white scale-105 shadow-blue-100' : 'bg-white border-transparent text-slate-400 hover:bg-slate-50'}`}
+            className={`px-12 py-6 rounded-[2rem] font-black text-[12px] uppercase tracking-[0.25em] transition-all border-4 ${tab === t ? 'bg-blue-800 border-blue-800 text-white shadow-2xl shadow-blue-200 scale-105' : 'bg-white border-transparent text-slate-300 hover:text-slate-900 hover:bg-slate-50'}`}
           >
             {t.replace('_', ' ')}
           </button>
@@ -119,27 +111,31 @@ function AdminPanel() {
       </nav>
 
       {tab === 'docenti' && !selDoc && (
-        <div className="grid grid-cols-1 gap-4 animate-in slide-in-from-bottom-5">
+        <div className="grid grid-cols-1 gap-6 animate-in slide-in-from-bottom-10 duration-700">
           {data.docenti.map((d: any) => {
             const dp = data.piani.filter((p: any) => p.docente_id === d.id);
+            const pA = dp.filter((p: any) => p.tipo === 'A').reduce((s, c: any) => s + c.ore_effettive, 0);
             const vA = dp.filter((p: any) => p.tipo === 'A' && p.presente).reduce((s, c: any) => s + c.ore_effettive, 0);
+            const pB = dp.filter((p: any) => p.tipo === 'B').reduce((s, c: any) => s + c.ore_effettive, 0);
             const vB = dp.filter((p: any) => p.tipo === 'B' && p.presente).reduce((s, c: any) => s + c.ore_effettive, 0);
             return (
-              <div key={d.id} className="bg-white p-5 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col md:flex-row items-center gap-6 hover:shadow-xl transition-all">
+              <div key={d.id} className="bg-white p-8 rounded-[4rem] border border-slate-100 shadow-sm flex flex-col xl:flex-row items-center gap-10 hover:shadow-2xl transition-all group">
                 <div className="flex-1">
-                  <h3 className="text-xl font-black uppercase text-slate-800 leading-none italic">{d.nome}</h3>
-                  <div className="flex gap-2 mt-2">
-                    <span className="text-[8px] font-black bg-blue-50 text-blue-600 px-2 py-1 rounded-md">{d.contratto}</span>
-                    <span className="text-[8px] font-black bg-slate-50 text-slate-400 px-2 py-1 rounded-md">CODE: {d.codice_accesso}</span>
+                  <div className="flex items-center gap-4">
+                    <h3 className="text-4xl font-black uppercase text-slate-800 italic tracking-tighter leading-none">{d.nome}</h3>
+                    <span className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase italic border border-blue-100">{d.contratto}</span>
                   </div>
+                  <p className="text-[11px] font-bold text-slate-300 uppercase tracking-[0.4em] mt-4">Security Code: {d.codice_accesso} • Status: Active</p>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <AdminStatMini label="COMMA A" val={vA} max={d.ore_a_dovute} color="blue" />
-                  <AdminStatMini label="COMMA B" val={vB} max={d.ore_b_dovute} color="indigo" />
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <AdminStatComplex label="COMMA A PIAN." val={pA} max={d.ore_a_dovute} col="slate" />
+                  <AdminStatComplex label="COMMA A VALID." val={vA} max={d.ore_a_dovute} col="blue" />
+                  <AdminStatComplex label="COMMA B PIAN." val={pB} max={d.ore_b_dovute} col="slate" />
+                  <AdminStatComplex label="COMMA B VALID." val={vB} max={d.ore_b_dovute} col="indigo" />
                 </div>
-                <div className="flex gap-2">
-                  <button onClick={() => setSelDoc(d)} className="bg-slate-900 text-white px-6 py-3 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-blue-600">Gestisci</button>
-                  <button onClick={async () => {if(confirm("Eliminare docente?")) { await supabase.from('docenti').delete().eq('id', d.id); refreshData(); }}} className="bg-red-50 text-red-500 p-3 rounded-xl hover:bg-red-500 hover:text-white transition-all"><svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M4 8V4h12v4h2v2h-2v10H4V10H2V8h2zm2 2v8h8v-8H6zm2-4h4V4H8v2z"/></svg></button>
+                <div className="flex gap-3">
+                  <button onClick={() => setSelDoc(d)} className="bg-slate-900 text-white px-10 py-5 rounded-[2rem] font-black text-[11px] uppercase tracking-widest shadow-xl hover:bg-blue-800 transition-all">Gestisci</button>
+                  <button onClick={async () => {if(confirm("Eliminare definitivamente?")) { await supabase.from('docenti').delete().eq('id', d.id); loadData(); }}} className="bg-red-50 text-red-500 p-5 rounded-[2rem] border border-red-100 hover:bg-red-500 hover:text-white transition-all"><svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M4 8V4h12v4h2v2h-2v10H4V10H2V8h2zm2 2v8h8v-8H6zm2-4h4V4H8v2z"/></svg></button>
                 </div>
               </div>
             );
@@ -148,134 +144,135 @@ function AdminPanel() {
       )}
 
       {tab === 'nuovo_doc' && (
-        <div className="max-w-2xl mx-auto bg-white p-12 rounded-[4rem] shadow-2xl border border-slate-50">
-          <h2 className="text-3xl font-black mb-10 text-center uppercase italic text-emerald-600">Nuova Anagrafica</h2>
-          <div className="space-y-6">
-            <input type="text" placeholder="FULL NAME" className="w-full p-6 bg-slate-50 rounded-[2rem] font-black text-xl uppercase border-4 border-transparent focus:border-emerald-500 outline-none" value={formDoc.nome} onChange={e => setFormDoc({...formDoc, nome: e.target.value})} />
-            <div className="grid grid-cols-2 gap-4">
-              <select className="p-6 bg-slate-50 rounded-[2rem] font-black uppercase border-4 border-transparent focus:border-emerald-500 outline-none appearance-none" value={formDoc.contratto} onChange={e => setFormDoc({...formDoc, contratto: e.target.value})}>
-                <option value="INTERA">INTERA (18H)</option>
-                <option value="COMPLETAMENTO">COMPLETAMENTO</option>
-                <option value="SPEZZONE">SPEZZONE</option>
-              </select>
-              <input type="number" placeholder="WEEKLY HOURS" className="p-6 bg-slate-50 rounded-[2rem] font-black text-center border-4 border-transparent focus:border-emerald-500 outline-none" value={formDoc.ore} onChange={e => setFormDoc({...formDoc, ore: Number(e.target.value)})} />
+        <div className="max-w-4xl mx-auto bg-white p-20 rounded-[5rem] shadow-2xl border border-slate-50">
+          <h2 className="text-5xl font-black mb-16 text-center uppercase italic text-emerald-600 tracking-tighter">Nuovo Staff</h2>
+          <div className="space-y-10">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-300 uppercase ml-6 tracking-widest">Nominativo Completo</label>
+              <input type="text" className="w-full p-10 bg-slate-50 rounded-[3rem] font-black text-3xl uppercase border-4 border-transparent focus:border-emerald-500 outline-none shadow-inner" value={formDoc.nome} onChange={e => setFormDoc({...formDoc, nome: e.target.value})} />
             </div>
-            <div className="bg-slate-50 p-8 rounded-[2rem]">
-               <label className="text-[9px] font-black text-slate-400 uppercase block mb-4 text-center">Active Service Months (1-9)</label>
-               <input type="range" min="1" max="9" value={formDoc.mesi} onChange={e => setFormDoc({...formDoc, mesi: Number(e.target.value)})} className="w-full h-3 bg-slate-200 rounded-full appearance-none cursor-pointer accent-emerald-600" />
-               <p className="text-3xl font-black text-emerald-600 mt-4 text-center italic">{formDoc.mesi} MONTHS</p>
+            <div className="grid grid-cols-2 gap-8">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-300 uppercase ml-6 tracking-widest">Tipologia Contratto</label>
+                <select className="w-full p-10 bg-slate-50 rounded-[3rem] font-black text-xl uppercase border-4 border-transparent focus:border-emerald-500 outline-none appearance-none" value={formDoc.contratto} onChange={e => setFormDoc({...formDoc, contratto: e.target.value})}>
+                  <option value="INTERA">INTERA (18H)</option>
+                  <option value="COMPLETAMENTO">COMPLETAMENTO</option>
+                  <option value="SPEZZONE">SPEZZONE</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-300 uppercase ml-6 tracking-widest">Ore Settimanali</label>
+                <input type="number" className="w-full p-10 bg-slate-50 rounded-[3rem] font-black text-3xl text-center border-4 border-transparent focus:border-emerald-500 outline-none shadow-inner" value={formDoc.ore} onChange={e => setFormDoc({...formDoc, ore: Number(e.target.value)})} />
+              </div>
             </div>
-            <button onClick={saveDocente} className="w-full bg-emerald-600 text-white p-8 rounded-[2.5rem] font-black text-xl uppercase shadow-xl hover:bg-slate-900 transition-all">Create Profile</button>
+            <button onClick={saveDocente} className="w-full bg-emerald-600 text-white p-12 rounded-[3.5rem] font-black text-3xl uppercase shadow-[0_20px_50px_rgba(16,185,129,0.3)] hover:bg-slate-900 transition-all active:scale-95">Registra Docente</button>
           </div>
         </div>
       )}
 
       {tab === 'impegni' && (
-        <div className="max-w-2xl mx-auto bg-white p-12 rounded-[4rem] shadow-2xl border">
-          <h2 className="text-3xl font-black mb-10 text-center uppercase italic text-orange-600">Crea Attività Collegiale</h2>
-          <div className="space-y-4">
-            <input id="tI" type="text" placeholder="DESCRIPTION" className="w-full p-6 bg-slate-50 rounded-[2rem] font-black uppercase border-4 border-transparent focus:border-orange-500 outline-none" />
-            <div className="grid grid-cols-2 gap-4">
-              <input id="dI" type="date" className="p-6 bg-slate-50 rounded-[2rem] font-black border-4 border-transparent focus:border-orange-500 outline-none" />
-              <input id="hI" type="number" step="0.5" placeholder="MAX HOURS" className="p-6 bg-slate-50 rounded-[2rem] font-black border-4 border-transparent focus:border-orange-500 outline-none text-center" />
+        <div className="max-w-3xl mx-auto bg-white p-20 rounded-[5rem] shadow-2xl border animate-in zoom-in">
+          <h2 className="text-5xl font-black mb-16 text-center uppercase italic text-orange-600 tracking-tighter">Pubblica Attività</h2>
+          <div className="space-y-8">
+            <input id="tI" type="text" placeholder="DESCRIZIONE ATTIVITÀ" className="w-full p-10 bg-slate-50 rounded-[3.5rem] font-black text-2xl uppercase border-4 border-transparent focus:border-orange-500 outline-none" />
+            <div className="grid grid-cols-2 gap-8">
+              <input id="dI" type="date" className="p-10 bg-slate-50 rounded-[3.5rem] font-black border-4 border-transparent focus:border-orange-500 outline-none" />
+              <input id="hI" type="number" step="0.5" placeholder="ORE PREVISTE" className="p-10 bg-slate-50 rounded-[3.5rem] font-black border-4 border-transparent focus:border-orange-500 outline-none text-center" />
             </div>
-            <div className="flex gap-3 p-2 bg-slate-100 rounded-[2rem]">
-               <button onClick={() => (window as any).tmpT = 'A'} className="flex-1 py-4 rounded-xl font-black text-[9px] uppercase transition-all bg-white shadow-sm focus:bg-blue-600 focus:text-white">Comma A</button>
-               <button onClick={() => (window as any).tmpT = 'B'} className="flex-1 py-4 rounded-xl font-black text-[9px] uppercase transition-all bg-white shadow-sm focus:bg-indigo-600 focus:text-white">Comma B</button>
+            <div className="flex gap-4 p-4 bg-slate-100 rounded-[3.5rem]">
+               <button onClick={() => (window as any).currT = 'A'} className="flex-1 py-8 rounded-[2.5rem] font-black text-[12px] uppercase transition-all bg-white shadow-sm focus:bg-blue-600 focus:text-white">Comma A (40h)</button>
+               <button onClick={() => (window as any).currT = 'B'} className="flex-1 py-8 rounded-[2.5rem] font-black text-[12px] uppercase transition-all bg-white shadow-sm focus:bg-indigo-600 focus:text-white">Comma B (40h)</button>
             </div>
             <button onClick={async () => {
               const t = (document.getElementById('tI') as HTMLInputElement).value;
               const d = (document.getElementById('dI') as HTMLInputElement).value;
               const h = (document.getElementById('hI') as HTMLInputElement).value;
-              const tip = (window as any).tmpT || 'A';
-              if(!t || !d || !h) return alert("Missing Data");
+              const tip = (window as any).currT || 'A';
+              if(!t || !d || !h) return;
               await supabase.from('impegni').insert([{ titolo: t, data: d, durata_max: Number(h), tipo: tip }]);
-              refreshData(); setTab('docenti');
-            }} className="w-full bg-orange-600 text-white p-8 rounded-[2.5rem] font-black text-xl uppercase shadow-xl hover:bg-slate-900 transition-all">Publish Activity</button>
+              loadData(); setTab('docenti');
+            }} className="w-full bg-orange-600 text-white p-12 rounded-[3.5rem] font-black text-3xl uppercase shadow-2xl hover:bg-slate-900 transition-all">Pubblica in Bacheca</button>
           </div>
         </div>
-      )}
       {tab === 'appello' && (
-        <div className="grid lg:grid-cols-2 gap-10 animate-in fade-in duration-500">
-          <div className="space-y-4">
-            <h3 className="text-[10px] font-black uppercase text-slate-400 ml-6 tracking-[0.4em]">Archivio Impegni</h3>
+        <div className="grid lg:grid-cols-2 gap-12 animate-in fade-in duration-500">
+          <div className="space-y-6">
+            <h3 className="text-[12px] font-black uppercase text-slate-400 ml-8 tracking-[0.5em]">Palinsesto Attività</h3>
             {data.impegni.map((i: any) => (
               <div 
                 key={i.id} onClick={() => setActiveImp(i.id)}
-                className={`p-8 rounded-[3rem] border-4 cursor-pointer transition-all flex justify-between items-center group ${activeImp === i.id ? 'bg-white border-indigo-600 shadow-2xl scale-[1.02]' : 'bg-white border-transparent shadow-sm'}`}
+                className={`p-10 rounded-[4rem] border-4 cursor-pointer transition-all flex justify-between items-center group ${activeImp === i.id ? 'bg-white border-blue-700 shadow-2xl scale-[1.02]' : 'bg-white border-transparent shadow-sm'}`}
               >
                 <div>
-                  <span className={`text-[8px] font-black px-3 py-1 rounded-full mb-2 inline-block ${i.tipo === 'A' ? 'bg-blue-100 text-blue-600' : 'bg-indigo-100 text-indigo-600'}`}>COMMA {i.tipo}</span>
-                  <h4 className="font-black uppercase text-lg tracking-tighter">{i.titolo}</h4>
-                  <p className="text-[10px] font-bold text-slate-400">{i.data} • Max {i.durata_max}h</p>
+                  <span className={`text-[10px] font-black px-4 py-1.5 rounded-full mb-4 inline-block ${i.tipo === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'}`}>COMMA {i.tipo}</span>
+                  <h4 className="font-black uppercase text-2xl tracking-tighter leading-none">{i.titolo}</h4>
+                  <p className="text-[12px] font-bold text-slate-400 mt-2">{i.data} • Budget {i.durata_max}h</p>
                 </div>
-                <button onClick={(e) => { e.stopPropagation(); deleteImpegno(i.id); }} className="text-red-200 hover:text-red-600 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"/></svg>
+                <button onClick={(e) => { e.stopPropagation(); if(confirm("Eliminare impegno e ore collegate?")) { supabase.from('piani').delete().eq('impegno_id', i.id).then(() => { supabase.from('impegni').delete().eq('id', i.id).then(loadData); }); } }} className="text-slate-200 hover:text-red-600 p-4 transition-colors">
+                  <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"/></svg>
                 </button>
               </div>
             ))}
           </div>
-          <div className="bg-white p-10 rounded-[4rem] shadow-2xl border min-h-[500px] sticky top-32">
-            <h3 className="text-2xl font-black mb-8 uppercase text-indigo-600 italic tracking-tighter">Validazione Ore</h3>
-            <div className="space-y-2">
+          <div className="bg-white p-12 rounded-[5rem] shadow-2xl border min-h-[600px] sticky top-32">
+            <h3 className="text-3xl font-black mb-10 uppercase text-blue-800 italic underline decoration-[10px] decoration-blue-50 underline-offset-8">Approvazione Ore</h3>
+            <div className="space-y-3">
               {data.piani.filter((p: any) => p.impegno_id === activeImp).map((p: any) => {
                 const doc = data.docenti.find((d: any) => d.id === p.docente_id);
                 return (
-                  <div key={p.id} className="flex justify-between items-center p-5 bg-slate-50 rounded-[2rem] border-2 border-transparent hover:border-slate-200 transition-all">
+                  <div key={p.id} className="flex justify-between items-center p-8 bg-slate-50 rounded-[3rem] border-2 border-transparent hover:border-blue-100 transition-all">
                     <div>
-                      <p className="font-black uppercase text-xs text-slate-700">{doc?.nome}</p>
-                      <p className="text-[9px] font-bold text-slate-400 uppercase italic">Dichiarate: {p.ore_effettive}h</p>
+                      <p className="font-black uppercase text-lg text-slate-800 tracking-tighter leading-none">{doc?.nome}</p>
+                      <p className="text-[11px] font-bold text-blue-500 uppercase mt-2 italic">Ore Inserite: {p.ore_effettive}h</p>
                     </div>
                     <button 
-                      onClick={async () => { await supabase.from('piani').update({ presente: !p.presente }).eq('id', p.id); refreshData(); }}
-                      className={`px-6 py-3 rounded-xl font-black text-[9px] uppercase shadow-md transition-all ${p.presente ? 'bg-emerald-500 text-white' : 'bg-white text-slate-300 border'}`}
+                      onClick={async () => { await supabase.from('piani').update({ presente: !p.presente }).eq('id', p.id); loadData(); }}
+                      className={`px-10 py-5 rounded-[2rem] font-black text-[11px] uppercase shadow-xl transition-all ${p.presente ? 'bg-emerald-500 text-white' : 'bg-white text-slate-300 border-2'}`}
                     >
-                      {p.presente ? 'Validato ✓' : 'Da Validare'}
+                      {p.presente ? 'Approvato ✓' : 'In Attesa'}
                     </button>
                   </div>
                 );
               })}
-              {!activeImp && <div className="text-center py-40 opacity-20 font-black uppercase italic tracking-widest text-sm">Seleziona un impegno a sinistra</div>}
+              {!activeImp && <div className="text-center py-48 opacity-10 font-black uppercase text-2xl italic tracking-[0.5em]">Seleziona Attività</div>}
             </div>
           </div>
         </div>
       )}
 
       {tab === 'documenti' && (
-        <div className="bg-white p-16 rounded-[5rem] shadow-2xl border animate-in zoom-in duration-500">
-          <div className="grid lg:grid-cols-2 gap-16">
-            <div className="bg-slate-50 p-16 rounded-[4rem] border-8 border-dashed border-slate-200 text-center group">
-               <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 text-white shadow-xl shadow-blue-100">
-                 <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+        <div className="bg-white p-20 rounded-[6rem] shadow-2xl border animate-in zoom-in">
+          <div className="grid lg:grid-cols-2 gap-20">
+            <div className="bg-slate-50 p-20 rounded-[5rem] border-[10px] border-dashed border-slate-200 text-center relative overflow-hidden group">
+               <div className="w-28 h-28 bg-blue-800 rounded-full flex items-center justify-center mx-auto mb-10 text-white shadow-3xl">
+                 <svg className="w-14 h-14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                </div>
-               <p className="font-black uppercase text-xs text-slate-400 mb-8 tracking-widest">Storage System (Bucket: files)</p>
-               <input type="file" className="block w-full text-xs text-slate-400 file:mr-4 file:py-3 file:px-8 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-slate-900 file:text-white hover:file:bg-blue-600 cursor-pointer" onChange={async (e) => {
+               <p className="font-black uppercase text-sm text-slate-400 mb-10 tracking-[0.3em]">Cloud Storage Engine</p>
+               <input type="file" className="block w-full text-sm text-slate-400 file:mr-6 file:py-5 file:px-12 file:rounded-full file:border-0 file:text-xs file:font-black file:bg-slate-900 file:text-white hover:file:bg-blue-700 cursor-pointer" onChange={async (e) => {
                  const file = e.target.files?.[0];
                  if(!file) return;
                  const path = `${Date.now()}_${file.name}`;
                  const { error: upErr } = await supabase.storage.from('files').upload(path, file);
-                 if(upErr) return alert("Errore Storage: " + upErr.message);
+                 if(upErr) return alert("VERIFICA BUCKET 'files' SU SUPABASE: " + upErr.message);
                  const { data: { publicUrl } } = supabase.storage.from('files').getPublicUrl(path);
                  await supabase.from('documenti').insert([{ nome: file.name, url: publicUrl, storage_path: path }]);
-                 refreshData();
+                 loadData();
                }} />
             </div>
-            <div className="space-y-3">
-              <h3 className="text-xs font-black uppercase text-slate-300 ml-4 mb-6 tracking-widest italic">File Disponibili</h3>
+            <div className="space-y-4">
+              <h3 className="text-xs font-black uppercase text-slate-300 ml-8 mb-8 tracking-[0.6em] italic">Digital Archive</h3>
               {data.docs.map((doc: any) => (
-                <div key={doc.id} className="p-6 bg-white border-2 border-slate-50 rounded-[2.5rem] flex justify-between items-center shadow-sm group hover:border-blue-100 transition-all">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center font-black text-[10px]">DOC</div>
-                    <p className="font-black text-xs uppercase text-slate-700 tracking-tighter truncate max-w-[150px]">{doc.nome}</p>
+                <div key={doc.id} className="p-8 bg-white border-4 border-slate-50 rounded-[3.5rem] flex justify-between items-center shadow-sm hover:shadow-2xl hover:border-blue-100 transition-all group">
+                  <div className="flex items-center gap-6">
+                    <div className="w-16 h-16 bg-red-50 text-red-600 rounded-[1.5rem] flex items-center justify-center font-black text-xs">PDF</div>
+                    <div>
+                      <p className="font-black text-md uppercase text-slate-800 tracking-tighter leading-none">{doc.nome}</p>
+                      <p className="text-[10px] font-bold text-slate-300 mt-2 uppercase tracking-widest">{new Date(doc.created_at).toLocaleDateString()}</p>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <a href={doc.url} target="_blank" className="bg-blue-50 text-blue-600 px-5 py-2 rounded-xl font-black text-[8px] uppercase">Apri</a>
-                    <button onClick={async () => {
-                      if(!confirm("Eliminare definitivamente il file?")) return;
-                      if(doc.storage_path) await supabase.storage.from('files').remove([doc.storage_path]);
-                      await supabase.from('documenti').delete().eq('id', doc.id);
-                      refreshData();
-                    }} className="bg-red-50 text-red-500 px-5 py-2 rounded-xl font-black text-[8px] uppercase hover:bg-red-500 hover:text-white transition-all">Elimina</button>
+                  <div className="flex gap-3">
+                    <a href={doc.url} target="_blank" className="bg-blue-50 text-blue-700 px-8 py-4 rounded-2xl font-black text-[10px] uppercase shadow-sm">View</a>
+                    <button onClick={async () => { if(confirm("Rimuovere file?")) { if(doc.storage_path) await supabase.storage.from('files').remove([doc.storage_path]); await supabase.from('documenti').delete().eq('id', doc.id); loadData(); }}} className="bg-red-50 text-red-500 px-8 py-4 rounded-2xl font-black text-[10px] uppercase transition-all hover:bg-red-600 hover:text-white">Delete</button>
                   </div>
                 </div>
               ))}
@@ -285,19 +282,22 @@ function AdminPanel() {
       )}
 
       {selDoc && (
-        <div className="mt-10 border-t-[12px] border-slate-900 pt-10">
-           <div className="flex items-center justify-between mb-8 bg-blue-700 p-8 rounded-[3rem] text-white shadow-xl">
-              <h2 className="text-3xl font-black uppercase italic tracking-tighter">Gestione: {selDoc.nome}</h2>
-              <button onClick={() => setSelDoc(null)} className="bg-white text-blue-700 px-8 py-3 rounded-2xl font-black text-[10px] uppercase shadow-lg">Chiudi Sessione</button>
+        <div className="mt-16 animate-in slide-in-from-bottom-20 duration-1000">
+           <div className="flex items-center justify-between mb-10 bg-slate-900 p-10 rounded-[4rem] text-white shadow-3xl">
+              <div>
+                <p className="text-[10px] font-black uppercase opacity-40 tracking-[0.5em] mb-2">Internal Management Mode</p>
+                <h2 className="text-5xl font-black uppercase italic tracking-tighter leading-none">{selDoc.nome}</h2>
+              </div>
+              <button onClick={() => setSelDoc(null)} className="bg-blue-700 text-white px-12 py-5 rounded-[2rem] font-black text-[11px] uppercase tracking-widest hover:bg-white hover:text-slate-900 transition-all">Close Editor</button>
            </div>
-           <DocentePanel docente={selDoc} adminMode={true} />
+           <DocenteModule docente={selDoc} adminMode={true} />
         </div>
       )}
     </main>
   );
 }
 
-function DocentePanel({ docente, adminMode = false }: any) {
+function DocenteModule({ docente, adminMode = false }: any) {
   const [impegni, setImpegni] = useState<any[]>([]);
   const [piani, setPiani] = useState<any[]>([]);
   const [docs, setDocs] = useState<any[]>([]);
@@ -314,48 +314,58 @@ function DocentePanel({ docente, adminMode = false }: any) {
 
   useEffect(() => { load(); }, [load]);
 
-  const vA = piani.filter(p => p.tipo === 'A' && p.presente).reduce((s, c) => s + c.ore_effettive, 0);
-  const vB = piani.filter(p => p.tipo === 'B' && p.presente).reduce((s, c) => s + c.ore_effettive, 0);
+  const stats = {
+    pA: piani.filter(p => p.tipo === 'A').reduce((s, c) => s + c.ore_effettive, 0),
+    vA: piani.filter(p => p.tipo === 'A' && p.presente).reduce((s, c) => s + c.ore_effettive, 0),
+    pB: piani.filter(p => p.tipo === 'B').reduce((s, c) => s + c.ore_effettive, 0),
+    vB: piani.filter(p => p.tipo === 'B' && p.presente).reduce((s, c) => s + c.ore_effettive, 0)
+  };
 
   return (
-    <div className="max-w-[1400px] mx-auto p-2">
-      <div className={`bg-white rounded-[3.5rem] shadow-2xl border-l-[16px] border-blue-600 mb-8 flex flex-col lg:flex-row items-center justify-between gap-8 animate-in slide-in-from-top duration-500 ${adminMode ? 'p-6' : 'p-12'}`}>
+    <div className="max-w-[1600px] mx-auto p-4">
+      <div className={`bg-white rounded-[4rem] shadow-2xl border-t-[16px] border-blue-700 mb-12 flex flex-col lg:flex-row items-center justify-between gap-10 animate-in fade-in duration-700 ${adminMode ? 'p-8' : 'p-16'}`}>
         {!adminMode && (
-          <div className="flex items-center gap-8">
-            <div className="w-20 h-20 bg-slate-900 rounded-[2rem] flex items-center justify-center text-white font-black text-4xl italic shadow-2xl">{docente.nome[0]}</div>
+          <div className="flex items-center gap-10">
+            <div className="w-24 h-24 bg-blue-800 rounded-[2.5rem] flex items-center justify-center text-white font-black text-5xl italic shadow-2xl">{docente.nome[0]}</div>
             <div>
-              <h2 className="text-4xl font-black uppercase italic tracking-tighter leading-none">{docente.nome}</h2>
-              <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.4em] mt-2">{docente.contratto} • {docente.ore_settimanali}H SETTIMANALI</p>
+              <h2 className="text-5xl font-black uppercase italic tracking-tighter leading-none text-slate-800">{docente.nome}</h2>
+              <div className="flex gap-4 mt-6">
+                <span className="bg-slate-100 text-slate-500 px-6 py-2 rounded-2xl text-[11px] font-black uppercase tracking-widest">{docente.contratto}</span>
+                <span className="bg-blue-50 text-blue-700 px-6 py-2 rounded-2xl text-[11px] font-black uppercase italic tracking-tighter border border-blue-100">{docente.ore_settimanali}H / Week</span>
+              </div>
             </div>
           </div>
         )}
-        <div className="flex gap-4">
-          <button onClick={() => setTab('p')} className={`px-10 py-5 rounded-[2rem] font-black text-[10px] uppercase shadow-lg transition-all ${tab === 'p' ? 'bg-blue-600 text-white scale-105' : 'bg-white border text-slate-400'}`}>Pianificazione</button>
-          <button onClick={() => setTab('d')} className={`px-10 py-5 rounded-[2rem] font-black text-[10px] uppercase shadow-lg transition-all ${tab === 'd' ? 'bg-blue-600 text-white scale-105' : 'bg-white border text-slate-400'}`}>Bacheca</button>
-          <button onClick={() => setTab('r')} className={`px-10 py-5 rounded-[2rem] font-black text-[10px] uppercase shadow-lg transition-all ${tab === 'r' ? 'bg-slate-900 text-white scale-105' : 'bg-white border text-slate-400'}`}>PDF Report</button>
+        <div className="flex flex-wrap gap-4 justify-center">
+          <button onClick={() => setTab('p')} className={`px-10 py-5 rounded-[2rem] font-black text-[11px] uppercase tracking-widest shadow-xl transition-all ${tab === 'p' ? 'bg-blue-700 text-white scale-105' : 'bg-white border-2 text-slate-300 hover:text-slate-900'}`}>Planning</button>
+          <button onClick={() => setTab('d')} className={`px-10 py-5 rounded-[2rem] font-black text-[11px] uppercase tracking-widest shadow-xl transition-all ${tab === 'd' ? 'bg-blue-700 text-white scale-105' : 'bg-white border-2 text-slate-300 hover:text-slate-900'}`}>Bacheca</button>
+          <button onClick={() => setTab('r')} className={`px-10 py-5 rounded-[2rem] font-black text-[11px] uppercase tracking-widest shadow-xl transition-all ${tab === 'r' ? 'bg-slate-900 text-white scale-105' : 'bg-white border-2 text-slate-300 hover:text-slate-900'}`}>PDF Report</button>
         </div>
-        <div className="flex gap-6 border-l-4 border-slate-50 pl-8">
-           <AdminStatMini label="COMMA A" val={vA} max={docente.ore_a_dovute} color="blue" />
-           <AdminStatMini label="COMMA B" val={vB} max={docente.ore_b_dovute} color="indigo" />
+        <div className="grid grid-cols-2 gap-4 border-l-4 border-slate-50 pl-10">
+           <AdminStatComplex label="COMMA A (PIAN/VAL)" val={stats.vA} max={docente.ore_a_dovute} col="blue" pian={stats.pA} />
+           <AdminStatComplex label="COMMA B (PIAN/VAL)" val={stats.vB} max={docente.ore_b_dovute} col="indigo" pian={stats.pB} />
         </div>
       </div>
 
       {tab === 'p' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 animate-in slide-in-from-bottom-10 duration-700">
           {impegni.map(i => {
             const p = piani.find(x => x.impegno_id === i.id);
             return (
-              <div key={i.id} className={`bg-white p-6 rounded-[2.5rem] border-2 transition-all flex flex-col justify-between gap-6 ${p ? 'border-blue-600 shadow-xl' : 'border-transparent shadow-sm'}`}>
+              <div key={i.id} className={`bg-white p-8 rounded-[3.5rem] border-4 transition-all flex flex-col justify-between gap-8 ${p ? 'border-blue-700 shadow-2xl bg-blue-50/10' : 'border-transparent shadow-sm hover:shadow-lg'}`}>
                 <div>
-                  <div className="flex justify-between items-start mb-4">
-                    <span className={`text-[8px] font-black px-3 py-1 rounded-full uppercase ${i.tipo === 'A' ? 'bg-blue-50 text-blue-600' : 'bg-indigo-50 text-indigo-600'}`}>COMMA {i.tipo}</span>
-                    {p?.presente && <span className="text-emerald-500 font-black text-[18px]">✓</span>}
+                  <div className="flex justify-between items-center mb-6">
+                    <span className={`text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-tighter ${i.tipo === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'}`}>COMMA {i.tipo}</span>
+                    {p?.presente && <div className="bg-emerald-500 text-white p-2 rounded-full shadow-lg"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7"/></svg></div>}
                   </div>
-                  <h4 className="text-lg font-black uppercase tracking-tighter leading-tight mb-1">{i.titolo}</h4>
-                  <p className="text-[10px] font-bold text-slate-400 italic">{i.data}</p>
+                  <h4 className="text-2xl font-black uppercase tracking-tighter leading-tight text-slate-800">{i.titolo}</h4>
+                  <p className="text-[12px] font-bold text-slate-400 mt-2 uppercase italic">{i.data}</p>
                 </div>
-                <div className="flex items-center gap-4 pt-4 border-t border-slate-50">
-                  <input id={`ov-${i.id}`} type="number" step="0.5" defaultValue={p ? p.ore_effettive : i.durata_max} disabled={p?.presente && !adminMode} className="w-16 p-3 bg-slate-100 rounded-xl font-black text-xl text-center outline-none" />
+                <div className="flex items-center gap-6 pt-6 border-t-2 border-slate-50">
+                  <div className="text-center">
+                    <p className="text-[9px] font-black text-slate-300 uppercase mb-2">Ore Piano</p>
+                    <input id={`ov-${i.id}`} type="number" step="0.5" defaultValue={p ? p.ore_effettive : i.durata_max} disabled={p?.presente && !adminMode} className="w-20 p-4 bg-slate-50 rounded-2xl font-black text-2xl text-center outline-none focus:ring-4 ring-blue-50" />
+                  </div>
                   <button 
                     onClick={async () => {
                       const h = (document.getElementById(`ov-${i.id}`) as HTMLInputElement).value;
@@ -363,9 +373,9 @@ function DocentePanel({ docente, adminMode = false }: any) {
                       else { await supabase.from('piani').insert([{ docente_id: docente.id, impegno_id: i.id, ore_effettive: Number(h), tipo: i.tipo, presente: false }]); }
                       load();
                     }}
-                    className={`flex-1 py-4 rounded-2xl font-black text-[9px] uppercase transition-all ${p ? 'bg-red-50 text-red-500' : 'bg-slate-900 text-white'}`}
+                    className={`flex-1 py-6 rounded-[2rem] font-black text-[11px] uppercase tracking-widest shadow-2xl transition-all ${p ? 'bg-red-50 text-red-500 border-2 border-red-100' : 'bg-slate-900 text-white hover:bg-blue-700'}`}
                   >
-                    {p ? 'Rimuovi' : 'Pianifica'}
+                    {p ? 'Rimuovi Ore' : 'Salva nel Piano'}
                   </button>
                 </div>
               </div>
@@ -375,67 +385,79 @@ function DocentePanel({ docente, adminMode = false }: any) {
       )}
 
       {tab === 'd' && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 animate-in zoom-in">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-10 animate-in zoom-in">
            {docs.map(doc => (
-              <a key={doc.id} href={doc.url} target="_blank" className="bg-white p-8 rounded-[3rem] border-2 border-slate-50 shadow-sm hover:shadow-2xl hover:border-blue-600 transition-all flex flex-col items-center text-center group">
-                 <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2-2H6a2 2 0 01-2-2V4z"/></svg></div>
-                 <h4 className="font-black uppercase text-[10px] tracking-tight truncate w-full">{doc.nome}</h4>
+              <a key={doc.id} href={doc.url} target="_blank" className="bg-white p-12 rounded-[4rem] border-4 border-slate-50 shadow-sm hover:shadow-2xl hover:border-blue-700 transition-all flex flex-col items-center text-center group">
+                 <div className="w-20 h-20 bg-blue-50 text-blue-700 rounded-3xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform"><svg className="w-10 h-10" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2-2H6a2 2 0 01-2-2V4z"/></svg></div>
+                 <h4 className="font-black uppercase text-xs tracking-tight text-slate-800 leading-tight h-8 overflow-hidden">{doc.nome}</h4>
               </a>
            ))}
         </div>
       )}
 
       {tab === 'r' && (
-        <div className="bg-white p-16 lg:p-24 rounded-[4rem] shadow-2xl border print:border-none print:shadow-none animate-in zoom-in">
-          <div className="border-b-8 border-slate-900 pb-12 mb-12 flex flex-col md:flex-row justify-between items-end gap-10">
+        <div className="bg-white p-24 rounded-[6rem] shadow-2xl border print:border-none print:shadow-none animate-in zoom-in">
+          <div className="border-b-[16px] border-slate-900 pb-16 mb-16 flex flex-col md:flex-row justify-between items-end gap-12">
             <div>
-              <h1 className="text-6xl font-black uppercase italic tracking-tighter leading-none mb-4">Final Report</h1>
-              <span className="bg-blue-600 text-white px-8 py-3 rounded-full font-black text-xl uppercase italic shadow-lg">{docente.nome}</span>
+              <h1 className="text-8xl font-black uppercase italic tracking-[-0.05em] leading-none mb-6">REPORT<br/>UFFICIALE</h1>
+              <span className="bg-blue-700 text-white px-12 py-5 rounded-full font-black text-3xl uppercase italic shadow-2xl">{docente.nome}</span>
             </div>
-            <p className="text-3xl font-black italic text-slate-300">A.S. 2025/26</p>
+            <div className="text-right">
+              <p className="text-[12px] font-black uppercase text-slate-300 tracking-[0.8em] mb-4">Registro Attività</p>
+              <p className="text-5xl font-black italic text-slate-900 tracking-tighter decoration-blue-700 underline underline-offset-8">A.S. 2025 / 26</p>
+            </div>
           </div>
           <table className="w-full text-left">
             <thead>
-              <tr className="text-[10px] font-black uppercase text-slate-300 border-b-4 border-slate-50">
-                <th className="py-8">Descrizione Attività</th>
-                <th className="py-8 text-center">Tipo</th>
-                <th className="py-8 text-right">Ore</th>
+              <tr className="text-[12px] font-black uppercase text-slate-400 border-b-8 border-slate-50">
+                <th className="py-12">Attività Collegiali</th>
+                <th className="py-12 text-center">Comma</th>
+                <th className="py-12 text-right">Ore Certificate</th>
               </tr>
             </thead>
-            <tbody className="divide-y-2 divide-slate-50">
-              {piani.map(p => {
+            <tbody className="divide-y-4 divide-slate-50">
+              {piani.filter(p => p.presente).map(p => {
                 const i = impegni.find(x => x.id === p.impegno_id);
                 return (
                   <tr key={p.id}>
-                    <td className="py-8 font-black uppercase text-sm italic">{i?.titolo}</td>
-                    <td className="py-8 text-center font-black text-[10px] text-slate-400">COMMA {p.tipo}</td>
-                    <td className="py-8 text-right font-black text-2xl italic">{(p.ore_effettive).toFixed(1)}H</td>
+                    <td className="py-12 font-black uppercase text-2xl italic tracking-tighter text-slate-800">{i?.titolo}</td>
+                    <td className="py-12 text-center font-black text-xs text-slate-400">TIPO {p.tipo}</td>
+                    <td className="py-12 text-right font-black text-5xl italic tracking-tighter text-blue-800">{(p.ore_effettive).toFixed(1)}H</td>
                   </tr>
                 );
               })}
               <tr className="bg-slate-900 text-white">
-                <td colSpan={2} className="p-12 font-black uppercase text-lg italic tracking-[0.3em]">Totale Ore Certificate</td>
-                <td className="p-12 text-right font-black text-6xl italic text-blue-400">{(vA + vB).toFixed(1)}H</td>
+                <td colSpan={2} className="p-20 font-black uppercase text-3xl italic tracking-[0.4em]">Totale Ore Maturate</td>
+                <td className="p-20 text-right font-black text-9xl italic tracking-tight text-blue-400">{(stats.vA + stats.vB).toFixed(1)}H</td>
               </tr>
             </tbody>
           </table>
-          <button onClick={() => window.print()} className="w-full mt-16 bg-blue-600 text-white p-10 rounded-[2.5rem] font-black text-2xl uppercase shadow-2xl print:hidden hover:bg-slate-900 transition-all">Download PDF</button>
+          <button onClick={() => window.print()} className="w-full mt-24 bg-blue-700 text-white p-14 rounded-[4rem] font-black text-4xl uppercase shadow-3xl print:hidden hover:bg-slate-900 transition-all hover:scale-[1.01]">Genera Certificazione PDF</button>
         </div>
       )}
     </div>
   );
 }
 
-function AdminStatMini({ label, val, max, color }: any) {
-  const c = color === 'blue' ? 'text-blue-600' : 'text-indigo-600';
-  const bg = color === 'blue' ? 'bg-blue-50' : 'bg-indigo-50';
+function AdminStatComplex({ label, val, max, col, pian = 0 }: any) {
+  const c = col === 'blue' ? 'text-blue-700' : (col === 'indigo' ? 'text-indigo-700' : 'text-slate-500');
+  const bg = col === 'blue' ? 'bg-blue-50' : (col === 'indigo' ? 'bg-indigo-50' : 'bg-slate-100');
   return (
-    <div className={`${bg} px-6 py-4 rounded-2xl border border-white text-center min-w-[140px] shadow-sm`}>
-      <p className="text-[8px] font-black text-slate-400 uppercase mb-2 tracking-widest">{label}</p>
-      <p className={`text-xl font-black italic ${c}`}>{val} / {max}h</p>
-      <div className="w-full h-1 bg-white/50 rounded-full mt-2 overflow-hidden">
+    <div className={`${bg} px-8 py-6 rounded-[2.5rem] border-2 border-white text-center min-w-[180px] shadow-sm`}>
+      <p className="text-[9px] font-black text-slate-400 uppercase mb-3 tracking-widest">{label}</p>
+      <div className="flex justify-center items-end gap-1">
+        <p className={`text-3xl font-black italic tracking-tighter ${c}`}>{val}</p>
+        <p className="text-[12px] font-bold text-slate-300 mb-1.5">/ {max}h</p>
+      </div>
+      {pian > val && (
+        <p className="text-[8px] font-black text-orange-500 uppercase mt-2 italic tracking-tighter">
+          Pianificato: {pian}h (Attesa)
+        </p>
+      )}
+      <div className="w-full h-1.5 bg-white rounded-full mt-3 overflow-hidden">
         <div className={`h-full bg-current ${c}`} style={{width: `${Math.min((val/max)*100, 100)}%`}}></div>
       </div>
     </div>
   );
 }
+      )}
