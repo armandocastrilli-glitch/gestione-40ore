@@ -63,7 +63,7 @@ export default function SProV3_Complete() {
     </div>
   );
 }
-
+import * as XLSX from 'xlsx';
 function AdminPanel() {
   const [tab, setTab] = useState('docenti');
   const [data, setData] = useState({ docenti: [], impegni: [], piani: [], docs: [] });
@@ -90,80 +90,59 @@ function AdminPanel() {
     const { error } = await supabase.from('docenti').delete().eq('id', id);
     if(!error) loadData();
   };
-import * as XLSX from 'xlsx';
 
-const exportExcelReport = (docenti: any[], impegni: any[], piani: any[]) => {
-  // 1. TESTATE (Righe 1 e 2)
-  // Riga 1: Titoli degli impegni (partono dalla colonna F)
-  const headerRow1 = ["REPORT DOCENTI", "", "", "", "", "", ...impegni.map(i => i.titolo)];
-  
-  // Riga 2: Sottotitoli e Date
-  const headerRow2 = [
-    "Nominativo", 
-    "Contratto", 
-    "Ore A Dovute", // Nuova Colonna
-    "Ore B Dovute", // Nuova Colonna
-    "Tot. Realizzate A", 
-    "Tot. Realizzate B", 
-    ...impegni.map(i => i.data)
-  ];
+  // --- FUNZIONE EXCEL (CORRETTA) ---
+  const exportExcelReport = () => {
+    const { docenti, impegni, piani } = data;
+    if (docenti.length === 0) return alert("Nessun dato da esportare");
 
-  // 2. COSTRUZIONE RIGHE
-  const rows = docenti.map(docente => {
-    // Calcolo ore effettive (P e AG)
-    const oreAeff = piani
-      .filter(p => p.docente_id === docente.id && p.tipo === 'A' && (p.stato === 'P' || p.stato === 'AG'))
-      .reduce((sum, p) => sum + p.ore_effettive, 0);
-    
-    const oreBeff = piani
-      .filter(p => p.docente_id === docente.id && p.tipo === 'B' && (p.stato === 'P' || p.stato === 'AG'))
-      .reduce((sum, p) => sum + p.ore_effettive, 0);
-
-    // Costruiamo la parte anagrafica e i totali
-    const row = [
-      docente.nome,
-      docente.contratto,
-      docente.ore_a_dovute, // Colonna C
-      docente.ore_b_dovute, // Colonna D
-      oreAeff,              // Colonna E
-      oreBeff               // Colonna F
+    const headerRow1 = ["REGISTRO GENERALE ATTIVITÀ", "", "", "", "", "", ...impegni.map(i => i.titolo)];
+    const headerRow2 = [
+      "Nominativo", 
+      "Contratto", 
+      "Ore A Dovute", 
+      "Ore B Dovute", 
+      "Tot. Realizzate A", 
+      "Tot. Realizzate B", 
+      ...impegni.map(i => i.data)
     ];
 
-    // Matrice delle presenze (Colonna G in poi)
-    impegni.forEach(imp => {
-      const piano = piani.find(p => p.docente_id === docente.id && p.impegno_id === imp.id);
-      if (!piano) {
-        row.push("-"); 
-      } else {
-        // Se vuoi vedere anche le ore fatte nel singolo giorno, usa: `${piano.stato || '?'}(${piano.ore_effettive}h)`
-        row.push(piano.stato || "?"); 
-      }
+    const rows = docenti.map((docente: any) => {
+      const pianiDoc = piani.filter((p: any) => p.docente_id === docente.id);
+      
+      const oreAeff = pianiDoc
+        .filter((p: any) => p.tipo === 'A' && (p.stato === 'P' || p.stato === 'AG'))
+        .reduce((sum, p: any) => sum + p.ore_effettive, 0);
+      
+      const oreBeff = pianiDoc
+        .filter((p: any) => p.tipo === 'B' && (p.stato === 'P' || p.stato === 'AG'))
+        .reduce((sum, p: any) => sum + p.ore_effettive, 0);
+
+      const row = [
+        docente.nome,
+        docente.contratto,
+        docente.ore_a_dovute,
+        docente.ore_b_dovute,
+        oreAeff,
+        oreBeff
+      ];
+
+      impegni.forEach((imp: any) => {
+        const piano = pianiDoc.find((p: any) => p.impegno_id === imp.id);
+        row.push(piano ? (piano.stato || "?") : "-");
+      });
+
+      return row;
     });
 
-    return row;
-  });
+    const worksheet = XLSX.utils.aoa_to_sheet([headerRow1, headerRow2, ...rows]);
+    worksheet['!cols'] = [{wch: 25}, {wch: 15}, {wch: 12}, {wch: 12}, {wch: 12}, {wch: 12}];
+    
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Registro");
+    XLSX.writeFile(workbook, `Report_Scuola_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
 
-  // 3. GENERAZIONE FILE
-  const worksheet = XLSX.utils.aoa_to_sheet([headerRow1, headerRow2, ...rows]);
-
-  // Applichiamo una larghezza minima alle colonne per leggibilità
-  const wscols = [
-    {wch: 30}, // Nome
-    {wch: 15}, // Contratto
-    {wch: 15}, // Ore A Dovute
-    {wch: 15}, // Ore B Dovute
-    {wch: 15}, // Realizzate A
-    {wch: 15}, // Realizzate B
-    ...impegni.map(() => ({wch: 12})) // Colonne date
-  ];
-  worksheet['!cols'] = wscols;
-
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Registro Presenze");
-
-  // 4. DOWNLOAD
-  XLSX.writeFile(workbook, `Report_Completo_${new Date().toISOString().split('T')[0]}.xlsx`);
-};
   const deleteImpegno = async (id: string) => {
     if(!confirm("Eliminando l'impegno cancellerai le ore di tutti i docenti per questa attività. Procedere?")) return;
     const { error } = await supabase.from('impegni').delete().eq('id', id);
@@ -219,6 +198,18 @@ const exportExcelReport = (docenti: any[], impegni: any[], piani: any[]) => {
 
   return (
     <main className="max-w-[1400px] mx-auto p-6 lg:p-10">
+      
+      {/* HEADER CON TASTO EXCEL */}
+      <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
+        <h1 className="text-3xl font-black uppercase italic tracking-tighter text-slate-900">Admin Control Panel</h1>
+        <button 
+          onClick={exportExcelReport}
+          className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl transition-all flex items-center gap-2"
+        >
+          <span>📥</span> Scarica Report Excel
+        </button>
+      </div>
+
       <nav className="flex flex-wrap gap-3 mb-12 justify-center">
         {[
           { id: 'docenti', label: 'Lista Docenti' },
@@ -236,16 +227,17 @@ const exportExcelReport = (docenti: any[], impegni: any[], piani: any[]) => {
         ))}
       </nav>
 
+      {/* TAB LISTA DOCENTI */}
       {tab === 'docenti' && !selDoc && (
         <div className="grid grid-cols-1 gap-4">
           {data.docenti.map((d: any) => {
             const pianiDoc = data.piani.filter((p: any) => p.docente_id === d.id);
             const stats = {
-  pianA: pianiDoc.filter((p: any) => p.tipo === 'A').reduce((s, c) => s + c.ore_effettive, 0),
-  svoltA: pianiDoc.filter((p: any) => p.tipo === 'A' && (p.stato === 'P' || p.stato === 'AG')).reduce((s, c) => s + c.ore_effettive, 0),
-  pianB: pianiDoc.filter((p: any) => p.tipo === 'B').reduce((s, c) => s + c.ore_effettive, 0),
-  svoltB: pianiDoc.filter((p: any) => p.tipo === 'B' && (p.stato === 'P' || p.stato === 'AG')).reduce((s, c) => s + c.ore_effettive, 0),
-};
+              pianA: pianiDoc.filter((p: any) => p.tipo === 'A').reduce((s, c) => s + c.ore_effettive, 0),
+              svoltA: pianiDoc.filter((p: any) => p.tipo === 'A' && (p.stato === 'P' || p.stato === 'AG')).reduce((s, c) => s + c.ore_effettive, 0),
+              pianB: pianiDoc.filter((p: any) => p.tipo === 'B').reduce((s, c) => s + c.ore_effettive, 0),
+              svoltB: pianiDoc.filter((p: any) => p.tipo === 'B' && (p.stato === 'P' || p.stato === 'AG')).reduce((s, c) => s + c.ore_effettive, 0),
+            };
 
             return (
               <div key={d.id} className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col xl:flex-row items-center gap-6 hover:shadow-lg transition-all group">
@@ -313,6 +305,7 @@ const exportExcelReport = (docenti: any[], impegni: any[], piani: any[]) => {
         </div>
       )}
 
+      {/* TAB NUOVO DOCENTE */}
       {tab === 'nuovo_doc' && (
         <div className="max-w-3xl mx-auto bg-white p-10 md:p-12 rounded-[3.5rem] shadow-2xl border animate-in zoom-in">
           <h2 className="text-3xl font-black mb-8 uppercase italic text-blue-800 tracking-tighter">Registrazione Staff</h2>
@@ -323,7 +316,7 @@ const exportExcelReport = (docenti: any[], impegni: any[], piani: any[]) => {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-[9px] font-black text-slate-400 uppercase ml-4 tracking-widest">Tipo Contratto (Normativa)</label>
+                <label className="text-[9px] font-black text-slate-400 uppercase ml-4 tracking-widest">Tipo Contratto</label>
                 <select className="w-full p-6 bg-slate-50 rounded-[2rem] font-bold uppercase border-4 border-transparent focus:border-blue-600 outline-none appearance-none cursor-pointer" value={formDoc.contratto} onChange={e => setFormDoc({...formDoc, contratto: e.target.value})}>
                   <option value="INTERA">Cattedra Intera (18h)</option>
                   <option value="COMPLETAMENTO">Spezzone + Completamento Esterno</option>
@@ -336,32 +329,17 @@ const exportExcelReport = (docenti: any[], impegni: any[], piani: any[]) => {
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-[9px] font-black text-slate-400 uppercase ml-4 tracking-widest">Mesi di Servizio Previsti (es: 9 per anno intero)</label>
+              <label className="text-[9px] font-black text-slate-400 uppercase ml-4 tracking-widest">Mesi di Servizio</label>
               <input type="number" step="0.5" max="9" min="0.5" className="w-full p-6 bg-slate-50 rounded-[2rem] font-bold border-4 border-transparent focus:border-blue-600 outline-none" value={formDoc.mesi} onChange={e => setFormDoc({...formDoc, mesi: Number(e.target.value)})} />
-              <p className="ml-4 text-[8px] font-bold text-slate-400 italic">*Il calcolo delle ore verrà riproporzionato se inferiore a 9 mesi.</p>
-            </div>
-            <div className="bg-blue-50 p-6 rounded-[2rem] border-2 border-blue-100 flex justify-around items-center">
-              <div className="text-center">
-                <p className="text-[8px] font-black text-blue-400 uppercase">Debito Comma A</p>
-                <p className="text-2xl font-black text-blue-800">
-                  {formDoc.contratto === 'SPEZZONE' ? Math.floor(40 * (formDoc.mesi / 9)) : Math.floor(((formDoc.contratto === 'INTERA' ? 80 : (80/18)*formDoc.ore) * (formDoc.mesi/9)) / 2)}h
-                </p>
-              </div>
-              <div className="w-px h-8 bg-blue-200"></div>
-              <div className="text-center">
-                <p className="text-[8px] font-black text-blue-400 uppercase">Debito Comma B</p>
-                <p className="text-2xl font-black text-blue-800">
-                   {formDoc.contratto === 'SPEZZONE' ? Math.ceil((40/18) * formDoc.ore * (formDoc.mesi/9)) : Math.ceil(((formDoc.contratto === 'INTERA' ? 80 : (80/18)*formDoc.ore) * (formDoc.mesi/9)) / 2)}h
-                </p>
-              </div>
             </div>
             <button onClick={saveDocente} className="w-full bg-blue-700 text-white p-8 rounded-[2rem] font-black text-xl uppercase shadow-xl hover:bg-slate-900 transition-all">
-              Conferma e Crea Accesso
+              Conferma e Crea
             </button>
           </div>
         </div>
       )}
 
+      {/* TAB NUOVA ATTIVITÀ */}
       {tab === 'impegni' && (
         <div className="max-w-2xl mx-auto bg-white p-12 rounded-[3.5rem] shadow-2xl border animate-in zoom-in">
           <h2 className="text-3xl font-black mb-10 uppercase italic text-orange-600 tracking-tighter">Crea Nuova Attività</h2>
@@ -375,163 +353,113 @@ const exportExcelReport = (docenti: any[], impegni: any[], piani: any[]) => {
               </div>
             </div>
             <input type="number" step="0.5" placeholder="ORE PREVISTE" className="w-full p-6 bg-slate-50 rounded-[2rem] font-bold outline-none" value={formImp.ore} onChange={e => setFormImp({...formImp, ore: Number(e.target.value)})} />
-            <button onClick={saveImpegno} className="w-full bg-orange-600 text-white p-8 rounded-[2.5rem] font-black text-xl uppercase shadow-xl">Pubblica in Calendario</button>
+            <button onClick={saveImpegno} className="w-full bg-orange-600 text-white p-8 rounded-[2.5rem] font-black text-xl uppercase shadow-xl">Pubblica</button>
           </div>
         </div>
       )}
 
-{tab === 'appello' && (
-  <div className="grid lg:grid-cols-2 gap-8 animate-in fade-in">
-    <div className="space-y-3">
-      <h3 className="text-[9px] font-black uppercase text-slate-400 ml-5 tracking-widest">Seleziona Attività</h3>
-      {data.impegni.map((i: any) => (
-        <div key={i.id} onClick={() => setActiveImp(i.id)} className={`p-6 rounded-[2.5rem] border-4 cursor-pointer transition-all ${activeImp === i.id ? 'bg-white border-blue-700 shadow-xl' : 'bg-white border-transparent shadow-sm'}`}>
-          <span className={`text-[8px] font-black px-2 py-0.5 rounded-full mb-2 inline-block ${i.tipo === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'}`}>COMMA {i.tipo}</span>
-          <h4 className="font-black uppercase text-lg tracking-tighter">{i.titolo}</h4>
-          <p className="text-[9px] font-bold text-slate-300 uppercase italic">{i.data} • {i.durata_max}H</p>
-        </div>
-      ))}
-    </div>
-
-    <div className="bg-white p-8 rounded-[3.5rem] shadow-2xl border sticky top-28 min-h-[450px]">
-      <h3 className="text-xl font-black mb-6 uppercase italic underline decoration-blue-100 underline-offset-4">Validazione Rapida</h3>
-      <div className="space-y-3">
-        {data.piani.filter((p: any) => p.impegno_id === activeImp).map((p: any) => {
-          const d = data.docenti.find((x: any) => x.id === p.docente_id);
-          return (
-            <div key={p.id} className="p-5 bg-slate-50 rounded-[1.8rem] flex justify-between items-center border-2 border-transparent">
-              <div>
-                <p className="font-black uppercase text-[11px] text-slate-800">{d?.nome}</p>
-                <p className="text-[9px] font-bold text-blue-600 uppercase">{p.ore_effettive}H</p>
+      {/* TAB VALIDAZIONE RAPIDA (APPELLO) */}
+      {tab === 'appello' && (
+        <div className="grid lg:grid-cols-2 gap-8 animate-in fade-in">
+          <div className="space-y-3">
+            <h3 className="text-[9px] font-black uppercase text-slate-400 ml-5 tracking-widest">Attività Recenti</h3>
+            {data.impegni.map((i: any) => (
+              <div key={i.id} onClick={() => setActiveImp(i.id)} className={`p-6 rounded-[2.5rem] border-4 cursor-pointer transition-all ${activeImp === i.id ? 'bg-white border-blue-700 shadow-xl' : 'bg-white border-transparent shadow-sm'}`}>
+                <span className={`text-[8px] font-black px-2 py-0.5 rounded-full mb-2 inline-block ${i.tipo === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'}`}>COMMA {i.tipo}</span>
+                <h4 className="font-black uppercase text-lg tracking-tighter">{i.titolo}</h4>
+                <p className="text-[9px] font-bold text-slate-300 uppercase italic">{i.data} • {i.durata_max}H</p>
               </div>
-              <div className="flex bg-white p-1 rounded-full gap-1 border">
-                {['P', 'AG', 'ANG'].map((s) => (
-                  <button
-                    key={s}
-                    onClick={async () => { 
-                      await supabase.from('piani').update({ stato: p.stato === s ? null : s }).eq('id', p.id); 
-                      loadData(); 
-                    }}
-                    className={`w-8 h-8 rounded-full text-[8px] font-black transition-all ${p.stato === s ? 'bg-slate-900 text-white' : 'text-slate-300 hover:bg-slate-100'}`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-        {!activeImp && <div className="text-center py-24 opacity-20 font-black uppercase text-[10px] tracking-[0.4em]">Scegli un impegno</div>}
-      </div>
-    </div>
-  </div>
-)}
-
-{tab === 'documenti' && (
-  <div className="bg-white p-10 rounded-[3.5rem] shadow-2xl border animate-in zoom-in">
-    <div className="grid lg:grid-cols-2 gap-12">
-      {/* AREA CARICAMENTO */}
-      <div className="bg-slate-50 p-10 rounded-[2.5rem] border-4 border-dashed border-slate-200 text-center flex flex-col items-center justify-center min-h-[250px]">
-        <div className="w-16 h-16 bg-blue-800 rounded-full flex items-center justify-center text-white mb-5 shadow-lg">
-          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
-          </svg>
-        </div>
-       <input 
-          type="file" 
-          className="text-[9px] font-black uppercase text-slate-400 cursor-pointer file:bg-slate-900 file:text-white file:rounded-full file:px-6 file:py-2.5 file:border-0 hover:file:bg-blue-700" 
-          onChange={async (e) => {
-            const file = e.target.files?.[0];
-            if(!file) return;
-            
-            const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
-            
-            try {
-              // 1. Caricamento fisico
-              const { error: upErr } = await supabase.storage
-                .from('files')
-                .upload(fileName, file);
-
-              if(upErr) throw upErr;
-
-              // 2. Recupero URL
-              const { data: { publicUrl } } = supabase.storage.from('files').getPublicUrl(fileName);
-
-              // 3. Salvataggio DB
-              await supabase.from('documenti').insert([{ 
-                nome: file.name, 
-                url: publicUrl, 
-                storage_path: fileName 
-              }]);
-
-              alert("File caricato con successo!");
-              window.location.reload(); // Ricarica per vedere il file senza perdere la sessione se i cookie sono attivi
-            } catch (err: any) {
-              alert("Errore durante il caricamento: " + err.message);
-            }
-          }} 
-        />
-      </div>
-
-      {/* LISTA FILE SEMPLIFICATA PER EVITARE ERRORI */}
-      <div className="grid gap-4 mt-8">
-        <p className="text-[10px] font-black uppercase opacity-50">Documenti caricati:</p>
-        {/* Qui i file appariranno al prossimo refresh */}
-        <p className="text-[9px] italic opacity-50 text-center">I nuovi file appariranno dopo il ricaricamento della pagina.</p>
-      </div>
-
-      {/* LISTA FILE CON TASTO ELIMINA */}
-      <div className="space-y-3">
-        <h3 className="text-[9px] font-black uppercase text-slate-300 mb-5 tracking-widest italic">Documenti Pubblicati</h3>
-        {data.docs.length === 0 && <p className="text-center py-10 text-slate-200 font-black uppercase text-[10px]">Nessun file presente</p>}
-        {data.docs.map((doc: any) => (
-          <div key={doc.id} className="p-5 bg-white border border-slate-100 rounded-[1.8rem] flex justify-between items-center shadow-sm hover:shadow-md transition-all group">
-             <div className="flex items-center gap-4">
-               <div className="w-10 h-10 bg-red-50 text-red-600 rounded-xl flex items-center justify-center font-black text-[9px]">PDF</div>
-               <span className="font-black uppercase text-[10px] text-slate-700 truncate max-w-[180px]">{doc.nome}</span>
-             </div>
-             <div className="flex gap-2">
-               <a 
-                 href={doc.url} 
-                 target="_blank" 
-                 rel="noreferrer"
-                 className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl font-black text-[9px] uppercase hover:bg-blue-600 hover:text-white transition-all"
-               >
-                 Apri
-               </a>
-               <button 
-                 onClick={async () => {
-                   if(confirm("Vuoi eliminare definitivamente questo documento?")) {
-                     // 1. Elimina il file fisico dallo Storage
-                     const { error: storageErr } = await supabase.storage
-                       .from('files')
-                       .remove([doc.storage_path]);
-                     
-                     if (storageErr) console.error("Errore rimozione file:", storageErr);
-
-                     // 2. Elimina il riferimento dal Database
-                     await supabase.from('documenti').delete().eq('id', doc.id);
-                     
-                     loadData();
-                   }
-                 }}
-                 className="bg-white text-slate-300 px-4 py-2 rounded-xl font-black text-[9px] uppercase hover:bg-red-500 hover:text-white transition-all border border-slate-100"
-               >
-                 Elimina
-               </button>
-             </div>
+            ))}
           </div>
-        ))}
-      </div>
-    </div>
-  </div>
-)}
 
+          <div className="bg-white p-8 rounded-[3.5rem] shadow-2xl border sticky top-28 min-h-[450px]">
+            <h3 className="text-xl font-black mb-6 uppercase italic underline decoration-blue-100 underline-offset-4">Appello</h3>
+            <div className="space-y-3">
+              {data.piani.filter((p: any) => p.impegno_id === activeImp).map((p: any) => {
+                const d = data.docenti.find((x: any) => x.id === p.docente_id);
+                return (
+                  <div key={p.id} className="p-5 bg-slate-50 rounded-[1.8rem] flex justify-between items-center">
+                    <div>
+                      <p className="font-black uppercase text-[11px] text-slate-800">{d?.nome}</p>
+                      <p className="text-[9px] font-bold text-blue-600 uppercase">{p.ore_effettive}H</p>
+                    </div>
+                    <div className="flex bg-white p-1 rounded-full gap-1 border">
+                      {['P', 'AG', 'ANG'].map((s) => (
+                        <button
+                          key={s}
+                          onClick={async () => { 
+                            await supabase.from('piani').update({ stato: p.stato === s ? null : s }).eq('id', p.id); 
+                            loadData(); 
+                          }}
+                          className={`w-8 h-8 rounded-full text-[8px] font-black transition-all ${p.stato === s ? 'bg-slate-900 text-white' : 'text-slate-300 hover:bg-slate-100'}`}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+              {!activeImp && <div className="text-center py-24 opacity-20 font-black uppercase text-[10px] tracking-[0.4em]">Scegli un impegno</div>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB BACHECA DOCUMENTI */}
+      {tab === 'documenti' && (
+        <div className="bg-white p-10 rounded-[3.5rem] shadow-2xl border animate-in zoom-in">
+          <div className="grid lg:grid-cols-2 gap-12">
+            <div className="bg-slate-50 p-10 rounded-[2.5rem] border-4 border-dashed border-slate-200 text-center flex flex-col items-center justify-center">
+              <input 
+                type="file" 
+                className="text-[9px] font-black uppercase text-slate-400 cursor-pointer file:bg-slate-900 file:text-white file:rounded-full file:px-6 file:py-2.5 file:border-0" 
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if(!file) return;
+                  const fileName = `${Date.now()}_${file.name}`;
+                  const { error: upErr } = await supabase.storage.from('files').upload(fileName, file);
+                  if(upErr) return alert("Errore upload");
+                  const { data: { publicUrl } } = supabase.storage.from('files').getPublicUrl(fileName);
+                  await supabase.from('documenti').insert([{ nome: file.name, url: publicUrl, storage_path: fileName }]);
+                  loadData();
+                  alert("File caricato!");
+                }} 
+              />
+            </div>
+            <div className="space-y-3">
+              <h3 className="text-[9px] font-black uppercase text-slate-300 mb-5 tracking-widest italic">Documenti Pubblicati</h3>
+              {data.docs.map((doc: any) => (
+                <div key={doc.id} className="p-5 bg-white border border-slate-100 rounded-[1.8rem] flex justify-between items-center shadow-sm">
+                   <span className="font-black uppercase text-[10px] text-slate-700">{doc.nome}</span>
+                   <button 
+                    onClick={async () => {
+                      if(confirm("Eliminare?")) {
+                        await supabase.storage.from('files').remove([doc.storage_path]);
+                        await supabase.from('documenti').delete().eq('id', doc.id);
+                        loadData();
+                      }
+                    }}
+                    className="text-red-500 font-black text-[9px] uppercase"
+                   >Elimina</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DETTAGLIO DOCENTE SELEZIONATO */}
       {selDoc && (
         <div className="mt-12 border-t-[8px] border-slate-900 pt-12">
+          <div className="flex justify-between items-center mb-6">
+             <h2 className="text-xl font-black uppercase tracking-widest">Dettaglio: {selDoc.nome}</h2>
+             <button onClick={() => setSelDoc(null)} className="text-slate-400 font-bold uppercase text-xs">Chiudi X</button>
+          </div>
           <DocentePanel docente={selDoc} adminMode={true} />
         </div>
       )}
+
     </main>
   );
 }
