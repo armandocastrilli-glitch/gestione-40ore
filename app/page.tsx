@@ -467,15 +467,18 @@ function AdminPanel() {
 function DocentePanel({ docente, adminMode = false }: any) {
   const [impegni, setImpegni] = useState<any[]>([]);
   const [piani, setPiani] = useState<any[]>([]);
+  const [documenti, setDocumenti] = useState<any[]>([]); // Stato per i file
   const [tab, setTab] = useState('calendario');
 
   const load = useCallback(async () => {
-    const [i, p] = await Promise.all([
+    const [i, p, d] = await Promise.all([
       supabase.from('impegni').select('*').order('data', { ascending: true }),
-      supabase.from('piani').select('*').eq('docente_id', docente.id)
+      supabase.from('piani').select('*').eq('docente_id', docente.id),
+      supabase.from('documenti').select('*').order('created_at', { ascending: false })
     ]);
     setImpegni(i.data || []); 
     setPiani(p.data || []);
+    setDocumenti(d.data || []);
   }, [docente.id]);
 
   useEffect(() => { load(); }, [load]);
@@ -486,72 +489,61 @@ function DocentePanel({ docente, adminMode = false }: any) {
   };
 
   const formatDate = (dateStr: string) => {
-    const [y, m, d] = dateStr.split('-');
-    return { gg: d, mm: m, aaaa: y };
+    if(!dateStr) return { gg: '--', mm: '--' };
+    const parts = dateStr.split('-');
+    return { gg: parts[2], mm: parts[1], aaaa: parts[0] };
   };
 
   return (
     <div className="max-w-6xl mx-auto px-4 pb-20">
       
-      {/* 1. PROGRESS BAR SEMPRE VISIBILI IN ALTO */}
+      {/* 1. PROGRESS BAR SEMPRE VISIBILI */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
         <ProgressBar label="Pianificazione Comma A" attuale={stats.pA} target={docente.ore_a_dovute} color="blue" />
         <ProgressBar label="Pianificazione Comma B" attuale={stats.pB} target={docente.ore_b_dovute} color="indigo" />
       </div>
 
-      {/* 2. NAVIGAZIONE TABS */}
-      <div className="flex gap-2 mb-8 bg-slate-100 p-2 rounded-3xl w-fit mx-auto border shadow-inner">
-        <button onClick={() => setTab('calendario')} className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'calendario' ? 'bg-white shadow-md text-blue-700' : 'opacity-40 hover:opacity-100'}`}>📅 Calendario</button>
-        <button onClick={() => setTab('miei')} className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'miei' ? 'bg-white shadow-md text-blue-700' : 'opacity-40 hover:opacity-100'}`}>✅ Il Mio Piano</button>
-        <button onClick={() => setTab('report')} className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'report' ? 'bg-white shadow-md text-blue-700' : 'opacity-40 hover:opacity-100'}`}>📄 Report</button>
+      {/* 2. NAVIGAZIONE TABS POTENZIATA */}
+      <div className="flex flex-wrap justify-center gap-2 mb-8 bg-slate-100 p-2 rounded-[2rem] w-fit mx-auto border shadow-inner">
+        <button onClick={() => setTab('calendario')} className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'calendario' ? 'bg-white shadow-md text-blue-700' : 'opacity-40 hover:opacity-100'}`}>📅 Calendario</button>
+        <button onClick={() => setTab('miei')} className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'miei' ? 'bg-white shadow-md text-blue-700' : 'opacity-40 hover:opacity-100'}`}>✅ Il Mio Piano</button>
+        <button onClick={() => setTab('documenti')} className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'documenti' ? 'bg-white shadow-md text-blue-700' : 'opacity-40 hover:opacity-100'}`}>📂 Documenti</button>
+        <button onClick={() => setTab('report')} className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'report' ? 'bg-white shadow-md text-blue-700' : 'opacity-40 hover:opacity-100'}`}>📄 Report</button>
       </div>
 
+      {/* 3. TAB CALENDARIO */}
       {tab === 'calendario' && (
         <div className="grid gap-2 animate-in fade-in slide-in-from-bottom-4">
-           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4 ml-4 font-black">Scegli e personalizza le ore</p>
            {impegni.map(i => {
              const p = piani.find(x => x.impegno_id === i.id);
              const { gg, mm } = formatDate(i.data);
              return (
-               <div key={i.id} className={`bg-white rounded-2xl border flex items-center p-4 transition-all ${p ? 'border-blue-500 bg-blue-50/30' : 'border-slate-100 hover:shadow-lg'}`}>
+               <div key={i.id} className={`bg-white rounded-2xl border flex items-center p-4 transition-all ${p ? 'border-blue-500 bg-blue-50/30 shadow-inner' : 'border-slate-100 hover:shadow-lg'}`}>
                  <div className="w-16 text-center border-r border-slate-100 pr-4">
                    <span className="block text-xl font-black text-slate-800 leading-none">{gg}</span>
                    <span className="text-[8px] font-bold text-slate-400 uppercase">{mm}</span>
                  </div>
-                 
                  <div className="flex-1 px-6">
                    <span className={`text-[7px] font-black px-1.5 py-0.5 rounded uppercase ${i.tipo === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'}`}>Comma {i.tipo}</span>
                    <h4 className="font-bold text-slate-700 uppercase mt-1 text-sm">{i.titolo}</h4>
                  </div>
-
                  <div className="flex items-center gap-4">
-                   {/* SELETTORE ORE: Il docente può cambiare le ore prima di prenotare */}
                    <div className="flex flex-col items-center">
-                     <span className="text-[8px] font-black uppercase text-slate-300 mb-1">Ore</span>
+                     <span className="text-[8px] font-black uppercase text-slate-300 mb-1 italic">Ore</span>
                      <input 
                       id={`ore-${i.id}`}
-                      type="number" 
-                      step="0.5" 
-                      min="0.5"
-                      max={i.ore || i.durata_max}
+                      type="number" step="0.5" min="0.5" max={i.ore || i.durata_max}
                       defaultValue={p ? p.ore_effettive : (i.ore || i.durata_max)}
-                      disabled={!!p} // Se è già prenotato, l'input è bloccato
-                      className="w-14 bg-slate-50 border-2 border-slate-100 rounded-lg p-1 text-center font-black text-sm outline-none focus:border-blue-500 transition-all"
+                      disabled={!!p}
+                      className="w-14 bg-slate-50 border-2 border-slate-100 rounded-lg p-1 text-center font-black text-sm"
                      />
                    </div>
-
                    <button 
                     onClick={async () => {
-                      if(p) {
-                        await supabase.from('piani').delete().eq('id', p.id);
-                      } else {
+                      if(p) { await supabase.from('piani').delete().eq('id', p.id); } 
+                      else {
                         const oreScelte = (document.getElementById(`ore-${i.id}`) as HTMLInputElement).value;
-                        await supabase.from('piani').insert([{ 
-                          docente_id: docente.id, 
-                          impegno_id: i.id, 
-                          ore_effettive: Number(oreScelte), 
-                          tipo: i.tipo 
-                        }]);
+                        await supabase.from('piani').insert([{ docente_id: docente.id, impegno_id: i.id, ore_effettive: Number(oreScelte), tipo: i.tipo }]);
                       }
                       load();
                     }}
@@ -566,7 +558,88 @@ function DocentePanel({ docente, adminMode = false }: any) {
         </div>
       )}
 
-      {/* ... (Tab "miei" e "report" restano uguali) ... */}
+      {/* 4. TAB IL MIO PIANO (FIXED) */}
+      {tab === 'miei' && (
+        <div className="grid gap-4 animate-in fade-in">
+          {piani.length === 0 ? (
+            <p className="text-center py-20 opacity-30 font-black uppercase text-xs tracking-[.3em]">Nessuna attività prenotata</p>
+          ) : (
+            piani.map(p => {
+              const info = impegni.find(i => i.id === p.impegno_id);
+              return (
+                <div key={p.id} className="bg-white p-6 rounded-[2rem] border-l-[12px] border-emerald-500 shadow-sm flex justify-between items-center">
+                  <div>
+                    <p className="text-[10px] font-black text-emerald-600 uppercase mb-1">{info?.data}</p>
+                    <h4 className="text-lg font-black uppercase">{info?.titolo}</h4>
+                    <p className="text-xs text-slate-400">Comma {p.tipo} • {p.ore_effettive} Ore</p>
+                  </div>
+                  <div className="bg-slate-50 px-4 py-2 rounded-xl text-[9px] font-black uppercase">
+                    {p.presente ? '✅ Validato' : '⏳ In Attesa'}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* 5. TAB DOCUMENTI (NUOVO) */}
+      {tab === 'documenti' && (
+        <div className="grid gap-4 animate-in fade-in">
+          <h3 className="text-xl font-black uppercase px-4">Documentazione Admin</h3>
+          {documenti.map(doc => (
+            <div key={doc.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center group hover:border-blue-500 transition-all">
+              <div className="flex items-center gap-4">
+                <div className="text-2xl">📄</div>
+                <div>
+                  <h4 className="font-bold text-slate-800 uppercase text-sm">{doc.nome}</h4>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase">Caricato il: {new Date(doc.created_at).toLocaleDateString()}</p>
+                </div>
+              </div>
+              <a 
+                href={doc.url} 
+                target="_blank" 
+                rel="noreferrer"
+                className="bg-blue-600 text-white px-6 py-3 rounded-2xl text-[9px] font-black uppercase hover:bg-blue-700 shadow-lg shadow-blue-100"
+              >
+                Apri / Scarica
+              </a>
+            </div>
+          ))}
+          {documenti.length === 0 && <p className="text-center py-20 opacity-20 font-black uppercase text-xs">Nessun documento disponibile</p>}
+        </div>
+      )}
+
+      {/* 6. TAB REPORT (FIXED) */}
+      {tab === 'report' && (
+        <div id="piano-stampa" className="bg-white p-12 rounded-[3rem] shadow-2xl border animate-in zoom-in">
+           <div className="flex justify-between items-start border-b-4 border-slate-900 pb-8 mb-8">
+             <div>
+               <h1 className="text-4xl font-black uppercase tracking-tighter italic">Piano Attività</h1>
+               <p className="text-lg font-bold text-blue-800 uppercase">{docente.nome}</p>
+             </div>
+             <button onClick={() => window.print()} className="bg-slate-900 text-white px-8 py-3 rounded-2xl text-[10px] font-black uppercase print:hidden">Scarica PDF</button>
+           </div>
+           <table className="w-full text-left">
+             <thead className="border-b-2 border-slate-100 text-[10px] font-black uppercase text-slate-400">
+               <tr><th className="py-4 text-center">Data</th><th>Attività</th><th className="text-center">Comma</th><th className="text-right">Ore</th></tr>
+             </thead>
+             <tbody>
+               {piani.map(p => {
+                 const info = impegni.find(i => i.id === p.impegno_id);
+                 return (
+                   <tr key={p.id} className="border-b border-slate-50 font-bold text-slate-700 text-sm">
+                     <td className="py-4 text-center">{info?.data}</td>
+                     <td className="uppercase">{info?.titolo}</td>
+                     <td className="text-center">{p.tipo}</td>
+                     <td className="text-right">{p.ore_effettive}H</td>
+                   </tr>
+                 );
+               })}
+             </tbody>
+           </table>
+        </div>
+      )}
     </div>
   );
 }
