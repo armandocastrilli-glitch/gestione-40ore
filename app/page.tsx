@@ -570,6 +570,36 @@ function DocentePanel({ docente, adminMode = false }: any) {
     </div>
   );
 }
+// --- COMPONENTE BARRA DI AVANZAMENTO (Da mettere fuori dalle altre funzioni) ---
+function ProgressBar({ label, attuale, target, color }: any) {
+  // Calcolo della percentuale (massimo 100%)
+  const percent = Math.min((attuale / target) * 100, 100);
+  const colorClass = color === 'blue' ? 'bg-blue-600' : 'bg-indigo-600';
+  
+  return (
+    <div className="bg-white p-6 rounded-[2rem] border shadow-sm">
+      <div className="flex justify-between items-end mb-3">
+        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-none">
+          {label}
+        </span>
+        <span className="text-xl font-black leading-none">
+          {attuale} <span className="text-slate-300 text-sm font-bold">/ {target}H</span>
+        </span>
+      </div>
+      <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+        <div 
+          className={`h-full ${colorClass} transition-all duration-1000 ease-out`} 
+          style={{ width: `${percent}%` }}
+        ></div>
+      </div>
+      {attuale > target && (
+        <p className="text-[8px] font-black text-emerald-500 uppercase mt-2 animate-pulse">
+          ✨ Ore eccedenti: +{attuale - target}H
+        </p>
+      )}
+    </div>
+  );
+}
 function AdminStatMini({ label, val, max, col, pian = 0 }: any) {
   const c = col === 'blue' ? 'text-blue-700' : 'text-indigo-700';
   const bg = col === 'blue' ? 'bg-blue-50' : 'bg-indigo-50';
