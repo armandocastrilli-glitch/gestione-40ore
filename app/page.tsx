@@ -168,11 +168,11 @@ function AdminPanel() {
           {data.docenti.map((d: any) => {
             const pianiDoc = data.piani.filter((p: any) => p.docente_id === d.id);
             const stats = {
-              pianA: pianiDoc.filter((p: any) => p.tipo === 'A').reduce((s, c) => s + c.ore_effettive, 0),
-              svoltA: pianiDoc.filter((p: any) => p.tipo === 'A' && p.presente).reduce((s, c) => s + c.ore_effettive, 0),
-              pianB: pianiDoc.filter((p: any) => p.tipo === 'B').reduce((s, c) => s + c.ore_effettive, 0),
-              svoltB: pianiDoc.filter((p: any) => p.tipo === 'B' && p.presente).reduce((s, c) => s + c.ore_effettive, 0),
-            };
+  pianA: pianiDoc.filter((p: any) => p.tipo === 'A').reduce((s, c) => s + c.ore_effettive, 0),
+  svoltA: pianiDoc.filter((p: any) => p.tipo === 'A' && (p.stato === 'P' || p.stato === 'AG')).reduce((s, c) => s + c.ore_effettive, 0),
+  pianB: pianiDoc.filter((p: any) => p.tipo === 'B').reduce((s, c) => s + c.ore_effettive, 0),
+  svoltB: pianiDoc.filter((p: any) => p.tipo === 'B' && (p.stato === 'P' || p.stato === 'AG')).reduce((s, c) => s + c.ore_effettive, 0),
+};
 
             return (
               <div key={d.id} className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col xl:flex-row items-center gap-6 hover:shadow-lg transition-all group">
@@ -307,53 +307,52 @@ function AdminPanel() {
         </div>
       )}
 
-      {tab === 'appello' && (
-        <div className="grid lg:grid-cols-2 gap-8 animate-in fade-in">
-          <div className="space-y-3">
-            <h3 className="text-[9px] font-black uppercase text-slate-400 ml-5 tracking-widest">Seleziona Attività</h3>
-            {data.impegni.map((i: any) => (
-              <div key={i.id} className="relative group">
-                <div 
-                  onClick={() => setActiveImp(i.id)}
-                  className={`p-6 rounded-[2.5rem] border-4 cursor-pointer transition-all flex justify-between items-center ${activeImp === i.id ? 'bg-white border-blue-700 shadow-xl scale-[1.01]' : 'bg-white border-transparent shadow-sm'}`}
-                >
-                  <div>
-                    <span className={`text-[8px] font-black px-2 py-0.5 rounded-full mb-2 inline-block ${i.tipo === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'}`}>COMMA {i.tipo}</span>
-                    <h4 className="font-black uppercase text-lg tracking-tighter">{i.titolo}</h4>
-                    <p className="text-[9px] font-bold text-slate-300 uppercase italic">{i.data} • {i.durata_max}H</p>
-                  </div>
-                </div>
-                <button onClick={() => deleteImpegno(i.id)} className="absolute -top-1 -right-1 bg-red-500 text-white p-2.5 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
-              </div>
-            ))}
-          </div>
-          <div className="bg-white p-8 rounded-[3.5rem] shadow-2xl border sticky top-28 min-h-[450px]">
-            <h3 className="text-xl font-black mb-6 uppercase italic underline decoration-blue-100 underline-offset-4">Validazione Ore</h3>
-            <div className="space-y-2.5">
-              {data.piani.filter((p: any) => p.impegno_id === activeImp).map((p: any) => {
-                const d = data.docenti.find((x: any) => x.id === p.docente_id);
-                return (
-                  <div key={p.id} className="flex justify-between items-center p-5 bg-slate-50 rounded-[1.8rem] border-2 border-transparent hover:border-blue-100 transition-all">
-                    <div>
-                      <p className="font-black uppercase text-[11px] text-slate-800">{d?.nome}</p>
-                      <p className="text-[9px] font-bold text-blue-600 uppercase">Dichiarate: {p.ore_effettive}H</p>
-                    </div>
-                    <button 
-                      onClick={async () => { await supabase.from('piani').update({ presente: !p.presente }).eq('id', p.id); loadData(); }}
-                      className={`px-6 py-2 rounded-full font-black text-[9px] uppercase shadow-md transition-all ${p.presente ? 'bg-emerald-500 text-white' : 'bg-white text-slate-300 border border-slate-100'}`}
-                    >
-                      {p.presente ? 'Validato' : 'Valida'}
-                    </button>
-                  </div>
-                );
-              })}
-              {!activeImp && <div className="text-center py-24 opacity-20 font-black uppercase text-[10px] tracking-[0.4em]">Scegli un impegno</div>}
-            </div>
-          </div>
+{tab === 'appello' && (
+  <div className="grid lg:grid-cols-2 gap-8 animate-in fade-in">
+    <div className="space-y-3">
+      <h3 className="text-[9px] font-black uppercase text-slate-400 ml-5 tracking-widest">Seleziona Attività</h3>
+      {data.impegni.map((i: any) => (
+        <div key={i.id} onClick={() => setActiveImp(i.id)} className={`p-6 rounded-[2.5rem] border-4 cursor-pointer transition-all ${activeImp === i.id ? 'bg-white border-blue-700 shadow-xl' : 'bg-white border-transparent shadow-sm'}`}>
+          <span className={`text-[8px] font-black px-2 py-0.5 rounded-full mb-2 inline-block ${i.tipo === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'}`}>COMMA {i.tipo}</span>
+          <h4 className="font-black uppercase text-lg tracking-tighter">{i.titolo}</h4>
+          <p className="text-[9px] font-bold text-slate-300 uppercase italic">{i.data} • {i.durata_max}H</p>
         </div>
-      )}
+      ))}
+    </div>
+
+    <div className="bg-white p-8 rounded-[3.5rem] shadow-2xl border sticky top-28 min-h-[450px]">
+      <h3 className="text-xl font-black mb-6 uppercase italic underline decoration-blue-100 underline-offset-4">Validazione Rapida</h3>
+      <div className="space-y-3">
+        {data.piani.filter((p: any) => p.impegno_id === activeImp).map((p: any) => {
+          const d = data.docenti.find((x: any) => x.id === p.docente_id);
+          return (
+            <div key={p.id} className="p-5 bg-slate-50 rounded-[1.8rem] flex justify-between items-center border-2 border-transparent">
+              <div>
+                <p className="font-black uppercase text-[11px] text-slate-800">{d?.nome}</p>
+                <p className="text-[9px] font-bold text-blue-600 uppercase">{p.ore_effettive}H</p>
+              </div>
+              <div className="flex bg-white p-1 rounded-full gap-1 border">
+                {['P', 'AG', 'ANG'].map((s) => (
+                  <button
+                    key={s}
+                    onClick={async () => { 
+                      await supabase.from('piani').update({ stato: p.stato === s ? null : s }).eq('id', p.id); 
+                      loadData(); 
+                    }}
+                    className={`w-8 h-8 rounded-full text-[8px] font-black transition-all ${p.stato === s ? 'bg-slate-900 text-white' : 'text-slate-300 hover:bg-slate-100'}`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+        {!activeImp && <div className="text-center py-24 opacity-20 font-black uppercase text-[10px] tracking-[0.4em]">Scegli un impegno</div>}
+      </div>
+    </div>
+  </div>
+)}
 
 {tab === 'documenti' && (
   <div className="bg-white p-10 rounded-[3.5rem] shadow-2xl border animate-in zoom-in">
