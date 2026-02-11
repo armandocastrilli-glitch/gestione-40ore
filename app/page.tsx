@@ -467,9 +467,10 @@ function AdminPanel() {
 function DocentePanel({ docente, adminMode = false }: any) {
   const [impegni, setImpegni] = useState<any[]>([]);
   const [piani, setPiani] = useState<any[]>([]);
-  const [documenti, setDocumenti] = useState<any[]>([]); // Stato per i file
+  const [documenti, setDocumenti] = useState<any[]>([]);
   const [tab, setTab] = useState('calendario');
 
+  // Caricamento dati sincronizzato
   const load = useCallback(async () => {
     const [i, p, d] = await Promise.all([
       supabase.from('impegni').select('*').order('data', { ascending: true }),
@@ -483,59 +484,76 @@ function DocentePanel({ docente, adminMode = false }: any) {
 
   useEffect(() => { load(); }, [load]);
 
+  // LOGICA STATISTICHE: P e AG sommano le ore, ANG e NULL no.
   const stats = {
     pA: piani.filter(p => p.tipo === 'A').reduce((s, c) => s + c.ore_effettive, 0),
     pB: piani.filter(p => p.tipo === 'B').reduce((s, c) => s + c.ore_effettive, 0),
+    vA: piani.filter(p => p.tipo === 'A' && (p.stato === 'P' || p.stato === 'AG')).reduce((s, c) => s + c.ore_effettive, 0),
+    vB: piani.filter(p => p.tipo === 'B' && (p.stato === 'P' || p.stato === 'AG')).reduce((s, c) => s + c.ore_effettive, 0),
   };
 
-  const formatDate = (dateStr: string) => {
-    if(!dateStr) return { gg: '--', mm: '--' };
-    const parts = dateStr.split('-');
-    return { gg: parts[2], mm: parts[1], aaaa: parts[0] };
+  const updateStato = async (pianoId: string, nuovoStato: string | null) => {
+    await supabase.from('piani').update({ stato: nuovoStato }).eq('id', pianoId);
+    load();
   };
 
   return (
     <div className="max-w-6xl mx-auto px-4 pb-20">
       
-      {/* 1. PROGRESS BAR SEMPRE VISIBILI */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-        <ProgressBar label="Pianificazione Comma A" attuale={stats.pA} target={docente.ore_a_dovute} color="blue" />
-        <ProgressBar label="Pianificazione Comma B" attuale={stats.pB} target={docente.ore_b_dovute} color="indigo" />
+      {/* HEADER E PROGRESS BAR */}
+      <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-slate-100 mb-10">
+        <div className="flex flex-wrap items-center justify-between gap-6 mb-8">
+          <div className="flex items-center gap-6">
+            <div className="w-16 h-16 bg-blue-800 rounded-2xl flex items-center justify-center text-white font-black italic text-3xl shadow-lg">
+              {docente.nome[0]}
+            </div>
+            <div>
+              <h2 className="text-3xl font-black uppercase tracking-tighter text-slate-800">{docente.nome}</h2>
+              <div className="flex gap-3 mt-1 font-bold text-[10px] uppercase">
+                <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded">{docente.contratto}</span>
+                <span className="text-slate-400 bg-slate-50 px-2 py-0.5 rounded">{docente.ore_settimanali}H / SETT</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <ProgressBar label="Validato Comma A (P+AG)" attuale={stats.vA} target={docente.ore_a_dovute} color="blue" />
+          <ProgressBar label="Validato Comma B (P+AG)" attuale={stats.vB} target={docente.ore_b_dovute} color="indigo" />
+        </div>
       </div>
 
-      {/* 2. NAVIGAZIONE TABS POTENZIATA */}
-      <div className="flex flex-wrap justify-center gap-2 mb-8 bg-slate-100 p-2 rounded-[2rem] w-fit mx-auto border shadow-inner">
-        <button onClick={() => setTab('calendario')} className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'calendario' ? 'bg-white shadow-md text-blue-700' : 'opacity-40 hover:opacity-100'}`}>📅 Calendario</button>
-        <button onClick={() => setTab('miei')} className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'miei' ? 'bg-white shadow-md text-blue-700' : 'opacity-40 hover:opacity-100'}`}>✅ Il Mio Piano</button>
-        <button onClick={() => setTab('documenti')} className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'documenti' ? 'bg-white shadow-md text-blue-700' : 'opacity-40 hover:opacity-100'}`}>📂 Documenti</button>
-        <button onClick={() => setTab('report')} className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'report' ? 'bg-white shadow-md text-blue-700' : 'opacity-40 hover:opacity-100'}`}>📄 Report</button>
+      {/* NAVIGAZIONE */}
+      <div className="flex flex-wrap justify-center gap-2 mb-10 bg-slate-100 p-2 rounded-[2.5rem] w-fit mx-auto border shadow-inner">
+        <button onClick={() => setTab('calendario')} className={`px-8 py-4 rounded-[1.8rem] text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'calendario' ? 'bg-white shadow-md text-blue-700' : 'opacity-40 hover:opacity-100'}`}>📅 Calendario</button>
+        <button onClick={() => setTab('miei')} className={`px-8 py-4 rounded-[1.8rem] text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'miei' ? 'bg-white shadow-md text-blue-700' : 'opacity-40 hover:opacity-100'}`}>✅ Il Mio Piano</button>
+        <button onClick={() => setTab('documenti')} className={`px-8 py-4 rounded-[1.8rem] text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'documenti' ? 'bg-white shadow-md text-blue-700' : 'opacity-40 hover:opacity-100'}`}>📂 Documenti</button>
+        <button onClick={() => setTab('report')} className={`px-8 py-4 rounded-[1.8rem] text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'report' ? 'bg-white shadow-md text-blue-700' : 'opacity-40 hover:opacity-100'}`}>📄 Report</button>
       </div>
 
-      {/* 3. TAB CALENDARIO */}
+      {/* TAB 1: CALENDARIO GENERALE */}
       {tab === 'calendario' && (
-        <div className="grid gap-2 animate-in fade-in slide-in-from-bottom-4">
+        <div className="grid gap-3 animate-in fade-in slide-in-from-bottom-4">
            {impegni.map(i => {
              const p = piani.find(x => x.impegno_id === i.id);
-             const { gg, mm } = formatDate(i.data);
              return (
-               <div key={i.id} className={`bg-white rounded-2xl border flex items-center p-4 transition-all ${p ? 'border-blue-500 bg-blue-50/30 shadow-inner' : 'border-slate-100 hover:shadow-lg'}`}>
-                 <div className="w-16 text-center border-r border-slate-100 pr-4">
-                   <span className="block text-xl font-black text-slate-800 leading-none">{gg}</span>
-                   <span className="text-[8px] font-bold text-slate-400 uppercase">{mm}</span>
+               <div key={i.id} className={`bg-white rounded-[2rem] border p-6 flex items-center transition-all ${p ? 'border-blue-500 bg-blue-50/20' : 'border-slate-100 hover:shadow-xl'}`}>
+                 <div className="w-20 text-center border-r border-slate-100 pr-6">
+                   <span className="block text-2xl font-black text-slate-800 leading-none">{i.data.split('-')[2]}</span>
+                   <span className="text-[10px] font-bold text-slate-400 uppercase">{i.data.split('-')[1]}/{i.data.split('-')[0]}</span>
                  </div>
-                 <div className="flex-1 px-6">
-                   <span className={`text-[7px] font-black px-1.5 py-0.5 rounded uppercase ${i.tipo === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'}`}>Comma {i.tipo}</span>
-                   <h4 className="font-bold text-slate-700 uppercase mt-1 text-sm">{i.titolo}</h4>
+                 <div className="flex-1 px-8">
+                   <span className={`text-[8px] font-black px-2 py-1 rounded uppercase mb-2 inline-block ${i.tipo === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'}`}>Comma {i.tipo}</span>
+                   <h4 className="font-black text-slate-700 uppercase text-lg">{i.titolo}</h4>
                  </div>
-                 <div className="flex items-center gap-4">
+                 <div className="flex items-center gap-6">
                    <div className="flex flex-col items-center">
-                     <span className="text-[8px] font-black uppercase text-slate-300 mb-1 italic">Ore</span>
+                     <span className="text-[9px] font-black uppercase text-slate-300 mb-1 italic">H. Previste</span>
                      <input 
-                      id={`ore-${i.id}`}
-                      type="number" step="0.5" min="0.5" max={i.ore || i.durata_max}
-                      defaultValue={p ? p.ore_effettive : (i.ore || i.durata_max)}
+                      id={`ore-${i.id}`} type="number" step="0.5" min="0.5" max={i.durata_max || i.ore}
+                      defaultValue={p ? p.ore_effettive : (i.durata_max || i.ore)}
                       disabled={!!p}
-                      className="w-14 bg-slate-50 border-2 border-slate-100 rounded-lg p-1 text-center font-black text-sm"
+                      className="w-16 bg-slate-50 border-2 border-slate-100 rounded-xl p-2 text-center font-black text-base outline-none focus:border-blue-500"
                      />
                    </div>
                    <button 
@@ -547,7 +565,7 @@ function DocentePanel({ docente, adminMode = false }: any) {
                       }
                       load();
                     }}
-                    className={`px-6 py-3 rounded-xl text-[9px] font-black uppercase transition-all ${p ? 'bg-red-500 text-white shadow-lg' : 'bg-slate-900 text-white hover:bg-blue-600'}`}
+                    className={`h-14 px-8 rounded-2xl text-[10px] font-black uppercase transition-all shadow-lg ${p ? 'bg-red-500 text-white shadow-red-100' : 'bg-slate-900 text-white hover:bg-blue-600 shadow-slate-200'}`}
                    >
                      {p ? 'Rimuovi' : 'Prenota'}
                    </button>
@@ -558,86 +576,108 @@ function DocentePanel({ docente, adminMode = false }: any) {
         </div>
       )}
 
-      {/* 4. TAB IL MIO PIANO (FIXED) */}
+      {/* TAB 2: IL MIO PIANO + VALIDAZIONE */}
       {tab === 'miei' && (
-        <div className="grid gap-4 animate-in fade-in">
-          {piani.length === 0 ? (
-            <p className="text-center py-20 opacity-30 font-black uppercase text-xs tracking-[.3em]">Nessuna attività prenotata</p>
-          ) : (
-            piani.map(p => {
-              const info = impegni.find(i => i.id === p.impegno_id);
-              return (
-                <div key={p.id} className="bg-white p-6 rounded-[2rem] border-l-[12px] border-emerald-500 shadow-sm flex justify-between items-center">
-                  <div>
-                    <p className="text-[10px] font-black text-emerald-600 uppercase mb-1">{info?.data}</p>
-                    <h4 className="text-lg font-black uppercase">{info?.titolo}</h4>
-                    <p className="text-xs text-slate-400">Comma {p.tipo} • {p.ore_effettive} Ore</p>
-                  </div>
-                  <div className="bg-slate-50 px-4 py-2 rounded-xl text-[9px] font-black uppercase">
-                    {p.presente ? '✅ Validato' : '⏳ In Attesa'}
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      )}
-
-      {/* 5. TAB DOCUMENTI (NUOVO) */}
-      {tab === 'documenti' && (
-        <div className="grid gap-4 animate-in fade-in">
-          <h3 className="text-xl font-black uppercase px-4">Documentazione Admin</h3>
-          {documenti.map(doc => (
-            <div key={doc.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center group hover:border-blue-500 transition-all">
-              <div className="flex items-center gap-4">
-                <div className="text-2xl">📄</div>
+        <div className="grid gap-4">
+          {piani.map(p => {
+            const info = impegni.find(i => i.id === p.impegno_id);
+            return (
+              <div key={p.id} className={`bg-white p-8 rounded-[2.5rem] border-l-[16px] shadow-md flex justify-between items-center ${
+                p.stato === 'P' || p.stato === 'AG' ? 'border-l-emerald-500' : p.stato === 'ANG' ? 'border-l-red-500' : 'border-l-orange-400'
+              }`}>
                 <div>
-                  <h4 className="font-bold text-slate-800 uppercase text-sm">{doc.nome}</h4>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase">Caricato il: {new Date(doc.created_at).toLocaleDateString()}</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase mb-1">{info?.data}</p>
+                  <h4 className="text-xl font-black uppercase text-slate-800">{info?.titolo}</h4>
+                  <p className="font-bold text-sm text-blue-600 uppercase">Comma {p.tipo} • {p.ore_effettive} Ore</p>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  {adminMode ? (
+                    <div className="flex bg-slate-100 p-2 rounded-2xl gap-2 border">
+                      <button onClick={() => updateStato(p.id, 'P')} className={`w-12 h-12 rounded-xl text-xs font-black transition-all ${p.stato === 'P' ? 'bg-emerald-500 text-white shadow-lg' : 'bg-white text-slate-400 hover:text-emerald-500'}`}>P</button>
+                      <button onClick={() => updateStato(p.id, 'AG')} className={`w-12 h-12 rounded-xl text-xs font-black transition-all ${p.stato === 'AG' ? 'bg-blue-500 text-white shadow-lg' : 'bg-white text-slate-400 hover:text-blue-500'}`}>AG</button>
+                      <button onClick={() => updateStato(p.id, 'ANG')} className={`w-12 h-12 rounded-xl text-xs font-black transition-all ${p.stato === 'ANG' ? 'bg-red-500 text-white shadow-lg' : 'bg-white text-slate-400 hover:text-red-500'}`}>ANG</button>
+                      <button onClick={() => updateStato(p.id, null)} className="w-12 h-12 text-slate-300 font-bold hover:text-slate-600">×</button>
+                    </div>
+                  ) : (
+                    <div className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-tighter ${
+                      p.stato === 'P' ? 'bg-emerald-50 text-emerald-600' : 
+                      p.stato === 'AG' ? 'bg-blue-50 text-blue-600' : 
+                      p.stato === 'ANG' ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-400 italic'
+                    }`}>
+                      {p.stato === 'P' ? 'Presente ✓' : p.stato === 'AG' ? 'Ass. Giustificata' : p.stato === 'ANG' ? 'Ass. Ingiustificata' : 'In attesa'}
+                    </div>
+                  )}
                 </div>
               </div>
-              <a 
-                href={doc.url} 
-                target="_blank" 
-                rel="noreferrer"
-                className="bg-blue-600 text-white px-6 py-3 rounded-2xl text-[9px] font-black uppercase hover:bg-blue-700 shadow-lg shadow-blue-100"
-              >
-                Apri / Scarica
-              </a>
-            </div>
-          ))}
-          {documenti.length === 0 && <p className="text-center py-20 opacity-20 font-black uppercase text-xs">Nessun documento disponibile</p>}
+            );
+          })}
         </div>
       )}
 
-      {/* 6. TAB REPORT (FIXED) */}
+      {/* TAB 3: DOCUMENTI */}
+      {tab === 'documenti' && (
+        <div className="grid gap-4 animate-in fade-in">
+          {documenti.map(doc => (
+            <div key={doc.id} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex justify-between items-center group hover:shadow-xl transition-all">
+              <div className="flex items-center gap-6">
+                <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-3xl">📄</div>
+                <div>
+                  <h4 className="font-black text-slate-800 uppercase text-lg">{doc.nome}</h4>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">CARICATO IL {new Date(doc.created_at).toLocaleDateString()}</p>
+                </div>
+              </div>
+              <a href={doc.url} target="_blank" rel="noreferrer" className="bg-slate-900 text-white px-8 py-4 rounded-2xl text-[10px] font-black uppercase hover:bg-blue-600 shadow-lg transition-all">Download</a>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* TAB 4: REPORT PDF */}
       {tab === 'report' && (
         <div id="piano-stampa" className="bg-white p-12 rounded-[3rem] shadow-2xl border animate-in zoom-in">
-           <div className="flex justify-between items-start border-b-4 border-slate-900 pb-8 mb-8">
+           <div className="flex justify-between items-start border-b-8 border-slate-900 pb-10 mb-10">
              <div>
-               <h1 className="text-4xl font-black uppercase tracking-tighter italic">Piano Attività</h1>
-               <p className="text-lg font-bold text-blue-800 uppercase">{docente.nome}</p>
+               <h1 className="text-5xl font-black uppercase tracking-tighter italic leading-none mb-2">Piano Attività</h1>
+               <p className="text-xl font-bold text-blue-700 uppercase">{docente.nome}</p>
              </div>
-             <button onClick={() => window.print()} className="bg-slate-900 text-white px-8 py-3 rounded-2xl text-[10px] font-black uppercase print:hidden">Scarica PDF</button>
+             <button onClick={() => window.print()} className="bg-slate-900 text-white px-10 py-5 rounded-2xl text-xs font-black uppercase print:hidden shadow-xl">Stampa PDF</button>
            </div>
            <table className="w-full text-left">
-             <thead className="border-b-2 border-slate-100 text-[10px] font-black uppercase text-slate-400">
-               <tr><th className="py-4 text-center">Data</th><th>Attività</th><th className="text-center">Comma</th><th className="text-right">Ore</th></tr>
+             <thead>
+               <tr className="border-b-4 border-slate-100 text-[11px] font-black uppercase text-slate-400">
+                 <th className="py-6">Data</th>
+                 <th>Attività</th>
+                 <th className="text-center">Comma</th>
+                 <th className="text-center">Stato</th>
+                 <th className="text-right">Ore</th>
+               </tr>
              </thead>
              <tbody>
                {piani.map(p => {
                  const info = impegni.find(i => i.id === p.impegno_id);
                  return (
-                   <tr key={p.id} className="border-b border-slate-50 font-bold text-slate-700 text-sm">
-                     <td className="py-4 text-center">{info?.data}</td>
+                   <tr key={p.id} className="border-b border-slate-50 font-bold text-slate-700">
+                     <td className="py-6">{info?.data}</td>
                      <td className="uppercase">{info?.titolo}</td>
-                     <td className="text-center">{p.tipo}</td>
-                     <td className="text-right">{p.ore_effettive}H</td>
+                     <td className="text-center">Comma {p.tipo}</td>
+                     <td className="text-center text-[10px] uppercase">{p.stato || 'Attesa'}</td>
+                     <td className="text-right font-black">{p.ore_effettive}H</td>
                    </tr>
                  );
                })}
              </tbody>
            </table>
+           <div className="mt-16 grid grid-cols-2 gap-10">
+              <div className="bg-slate-50 p-8 rounded-[2rem]">
+                <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Totale Comma A (Validato)</p>
+                <p className="text-4xl font-black text-slate-800">{stats.vA} / {docente.ore_a_dovute}H</p>
+              </div>
+              <div className="bg-slate-50 p-8 rounded-[2rem]">
+                <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Totale Comma B (Validato)</p>
+                <p className="text-4xl font-black text-slate-800">{stats.vB} / {docente.ore_b_dovute}H</p>
+              </div>
+           </div>
         </div>
       )}
     </div>
