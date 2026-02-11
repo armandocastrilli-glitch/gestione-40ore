@@ -90,7 +90,80 @@ function AdminPanel() {
     const { error } = await supabase.from('docenti').delete().eq('id', id);
     if(!error) loadData();
   };
+import * as XLSX from 'xlsx';
 
+const exportExcelReport = (docenti: any[], impegni: any[], piani: any[]) => {
+  // 1. TESTATE (Righe 1 e 2)
+  // Riga 1: Titoli degli impegni (partono dalla colonna F)
+  const headerRow1 = ["REPORT DOCENTI", "", "", "", "", "", ...impegni.map(i => i.titolo)];
+  
+  // Riga 2: Sottotitoli e Date
+  const headerRow2 = [
+    "Nominativo", 
+    "Contratto", 
+    "Ore A Dovute", // Nuova Colonna
+    "Ore B Dovute", // Nuova Colonna
+    "Tot. Realizzate A", 
+    "Tot. Realizzate B", 
+    ...impegni.map(i => i.data)
+  ];
+
+  // 2. COSTRUZIONE RIGHE
+  const rows = docenti.map(docente => {
+    // Calcolo ore effettive (P e AG)
+    const oreAeff = piani
+      .filter(p => p.docente_id === docente.id && p.tipo === 'A' && (p.stato === 'P' || p.stato === 'AG'))
+      .reduce((sum, p) => sum + p.ore_effettive, 0);
+    
+    const oreBeff = piani
+      .filter(p => p.docente_id === docente.id && p.tipo === 'B' && (p.stato === 'P' || p.stato === 'AG'))
+      .reduce((sum, p) => sum + p.ore_effettive, 0);
+
+    // Costruiamo la parte anagrafica e i totali
+    const row = [
+      docente.nome,
+      docente.contratto,
+      docente.ore_a_dovute, // Colonna C
+      docente.ore_b_dovute, // Colonna D
+      oreAeff,              // Colonna E
+      oreBeff               // Colonna F
+    ];
+
+    // Matrice delle presenze (Colonna G in poi)
+    impegni.forEach(imp => {
+      const piano = piani.find(p => p.docente_id === docente.id && p.impegno_id === imp.id);
+      if (!piano) {
+        row.push("-"); 
+      } else {
+        // Se vuoi vedere anche le ore fatte nel singolo giorno, usa: `${piano.stato || '?'}(${piano.ore_effettive}h)`
+        row.push(piano.stato || "?"); 
+      }
+    });
+
+    return row;
+  });
+
+  // 3. GENERAZIONE FILE
+  const worksheet = XLSX.utils.aoa_to_sheet([headerRow1, headerRow2, ...rows]);
+
+  // Applichiamo una larghezza minima alle colonne per leggibilità
+  const wscols = [
+    {wch: 30}, // Nome
+    {wch: 15}, // Contratto
+    {wch: 15}, // Ore A Dovute
+    {wch: 15}, // Ore B Dovute
+    {wch: 15}, // Realizzate A
+    {wch: 15}, // Realizzate B
+    ...impegni.map(() => ({wch: 12})) // Colonne date
+  ];
+  worksheet['!cols'] = wscols;
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Registro Presenze");
+
+  // 4. DOWNLOAD
+  XLSX.writeFile(workbook, `Report_Completo_${new Date().toISOString().split('T')[0]}.xlsx`);
+};
   const deleteImpegno = async (id: string) => {
     if(!confirm("Eliminando l'impegno cancellerai le ore di tutti i docenti per questa attività. Procedere?")) return;
     const { error } = await supabase.from('impegni').delete().eq('id', id);
