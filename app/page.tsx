@@ -469,7 +469,7 @@ function DocentePanel({ docente, adminMode = false }: any) {
   const [documenti, setDocumenti] = useState<any[]>([]);
   const [tab, setTab] = useState('calendario');
 
-  // 1. Caricamento dati
+  // 1. CARICAMENTO DATI (FETCH)
   const load = useCallback(async () => {
     const [i, p, d] = await Promise.all([
       supabase.from('impegni').select('*').order('data', { ascending: true }),
@@ -483,7 +483,7 @@ function DocentePanel({ docente, adminMode = false }: any) {
 
   useEffect(() => { load(); }, [load]);
 
-  // 2. Funzione aggiornamento stato
+  // 2. AZIONE: AGGIORNAMENTO STATO (VERDE/AZZURRO/ROSSO)
   const updateStato = async (pianoId: string, nuovoStato: string | null) => {
     const { error } = await supabase
       .from('piani')
@@ -497,7 +497,7 @@ function DocentePanel({ docente, adminMode = false }: any) {
     }
   };
 
-  // 3. Statistiche per Progress Bar e Report
+  // 3. CALCOLO STATISTICHE (Solo P e AG contano come validate)
   const stats = {
     vA: piani.filter(p => p.tipo === 'A' && (p.stato === 'P' || p.stato === 'AG')).reduce((s, c) => s + c.ore_effettive, 0),
     vB: piani.filter(p => p.tipo === 'B' && (p.stato === 'P' || p.stato === 'AG')).reduce((s, c) => s + c.ore_effettive, 0),
@@ -506,11 +506,11 @@ function DocentePanel({ docente, adminMode = false }: any) {
   return (
     <div className="max-w-6xl mx-auto px-4 pb-20">
       
-      {/* HEADER E PROGRESS BAR */}
+      {/* --- SEZIONE 1: HEADER E PROGRESSO --- */}
       <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-slate-100 mb-10">
         <div className="flex flex-wrap items-center justify-between gap-6 mb-8">
           <div className="flex items-center gap-6">
-            <div className="w-16 h-16 bg-blue-800 rounded-2xl flex items-center justify-center text-white font-black italic text-3xl shadow-lg">
+            <div className="w-16 h-16 bg-blue-800 rounded-2xl flex items-center justify-center text-white font-black italic text-3xl shadow-lg shadow-blue-200">
               {docente.nome[0]}
             </div>
             <div>
@@ -528,26 +528,30 @@ function DocentePanel({ docente, adminMode = false }: any) {
         </div>
       </div>
 
-      {/* NAVIGAZIONE TAB */}
+      {/* --- SEZIONE 2: NAVIGAZIONE (MENU TAB) --- */}
       <nav className="flex flex-wrap gap-3 mb-12 justify-center print:hidden">
         {[
-          { id: 'calendario', label: 'Calendario Attività' },
-          { id: 'miei', label: 'Il mio Piano / Validazione' },
-          { id: 'documenti', label: 'Bacheca File' },
-          { id: 'report', label: 'Report e Stampa' }
+          { id: 'calendario', label: 'Prenota' },
+          { id: 'miei', label: 'Piano e Stati' },
+          { id: 'documenti', label: 'Bacheca' },
+          { id: 'report', label: 'Report PDF' }
         ].map(t => (
           <button 
             key={t.id} onClick={() => setTab(t.id)}
-            className={`px-8 py-4 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest transition-all border-4 ${tab === t.id ? 'bg-slate-900 border-slate-900 text-white shadow-xl' : 'bg-white border-transparent text-slate-400 hover:text-slate-900'}`}
+            className={`px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${
+              tab === t.id ? 'bg-slate-900 text-white shadow-xl scale-105' : 'bg-white text-slate-400 border border-slate-100 hover:text-slate-900'
+            }`}
           >
             {t.label}
           </button>
         ))}
       </nav>
 
-      {/* TAB 1: CALENDARIO (PRENOTAZIONE) */}
+      {/* --- SEZIONE 3: CONTENUTO TAB --- */}
+      
+      {/* TAB CALENDARIO */}
       {tab === 'calendario' && (
-        <div className="grid gap-3 animate-in fade-in">
+        <div className="grid gap-4 animate-in fade-in">
            {impegni.map(i => {
              const p = piani.find(x => x.impegno_id === i.id);
              return (
@@ -556,30 +560,28 @@ function DocentePanel({ docente, adminMode = false }: any) {
                    <span className="block text-2xl font-black text-slate-800 leading-none">{i.data.split('-')[2]}</span>
                    <span className="text-[10px] font-bold text-slate-400 uppercase">{i.data.split('-')[1]}/{i.data.split('-')[0]}</span>
                  </div>
-                 <div className="flex-1 px-8">
+                 <div className="flex-1 px-8 text-left">
                    <span className={`text-[8px] font-black px-2 py-1 rounded uppercase mb-2 inline-block ${i.tipo === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'}`}>Comma {i.tipo}</span>
-                   <h4 className="font-black text-slate-700 uppercase text-lg">{i.titolo}</h4>
+                   <h4 className="font-black text-slate-700 uppercase text-lg leading-tight">{i.titolo}</h4>
                  </div>
                  <div className="flex items-center gap-6">
                    <div className="flex flex-col items-center">
-                     <span className="text-[9px] font-black uppercase text-slate-300 mb-1 italic">H. Previste</span>
+                     <span className="text-[9px] font-black text-slate-300 uppercase mb-1">H. Eff</span>
                      <input 
-                      id={`ore-${i.id}`} type="number" step="0.5" min="0.5" max={i.ore}
-                      defaultValue={p ? p.ore_effettive : i.ore}
-                      disabled={!!p}
-                      className="w-16 bg-slate-50 border-2 border-slate-100 rounded-xl p-2 text-center font-black text-base outline-none focus:border-blue-500"
+                      id={`ore-${i.id}`} type="number" step="0.5" defaultValue={p ? p.ore_effettive : i.ore}
+                      disabled={!!p} className="w-16 bg-slate-50 border-2 border-slate-100 rounded-xl p-2 text-center font-black"
                      />
                    </div>
                    <button 
                     onClick={async () => {
                       if(p) { await supabase.from('piani').delete().eq('id', p.id); } 
                       else {
-                        const oreScelte = (document.getElementById(`ore-${i.id}`) as HTMLInputElement).value;
-                        await supabase.from('piani').insert([{ docente_id: docente.id, impegno_id: i.id, ore_effettive: Number(oreScelte), tipo: i.tipo }]);
+                        const h = (document.getElementById(`ore-${i.id}`) as HTMLInputElement).value;
+                        await supabase.from('piani').insert([{ docente_id: docente.id, impegno_id: i.id, ore_effettive: Number(h), tipo: i.tipo }]);
                       }
                       load();
                     }}
-                    className={`h-14 px-8 rounded-2xl text-[10px] font-black uppercase transition-all shadow-lg ${p ? 'bg-red-500 text-white shadow-red-100' : 'bg-slate-900 text-white hover:bg-blue-600 shadow-slate-200'}`}
+                    className={`h-14 px-8 rounded-2xl text-[10px] font-black uppercase transition-all shadow-lg ${p ? 'bg-red-500 text-white shadow-red-200' : 'bg-slate-900 text-white hover:bg-blue-600'}`}
                    >
                      {p ? 'Rimuovi' : 'Prenota'}
                    </button>
@@ -590,34 +592,45 @@ function DocentePanel({ docente, adminMode = false }: any) {
         </div>
       )}
 
-      {/* TAB 2: IL MIO PIANO E VALIDAZIONE ADMIN */}
+      {/* TAB MIEI (IL CUORE DELLA VALIDAZIONE COLORATA) */}
       {tab === 'miei' && (
         <div className="grid gap-4 animate-in fade-in">
           {piani.length === 0 ? (
-            <p className="text-center py-20 opacity-30 font-black uppercase text-xs tracking-[.3em]">Nessuna attività prenotata</p>
+            <p className="text-center py-20 opacity-30 font-black uppercase text-xs">Nessuna attività prenotata</p>
           ) : (
             piani.map(p => {
               const info = impegni.find(i => i.id === p.impegno_id);
               return (
-                <div key={p.id} className={`bg-white p-6 rounded-[2rem] border-l-[12px] shadow-sm flex flex-wrap justify-between items-center ${
+                <div key={p.id} className={`bg-white p-6 rounded-[2rem] border-l-[12px] shadow-sm flex flex-wrap justify-between items-center transition-all ${
                   p.stato === 'P' || p.stato === 'AG' ? 'border-l-emerald-500' : p.stato === 'ANG' ? 'border-l-red-500' : 'border-l-orange-400'
                 }`}>
-                  <div className="min-w-[200px]">
+                  <div className="text-left">
                     <p className="text-[10px] font-black text-slate-400 uppercase mb-1">{info?.data}</p>
-                    <h4 className="text-lg font-black uppercase text-slate-800 leading-tight">{info?.titolo}</h4>
+                    <h4 className="text-lg font-black uppercase text-slate-800">{info?.titolo}</h4>
                     <p className="text-xs font-bold text-blue-600 uppercase">Comma {p.tipo} • {p.ore_effettive} Ore</p>
                   </div>
 
                   <div className="flex items-center gap-4 mt-4 sm:mt-0">
                     {adminMode ? (
+                      /* TASTI SEMAFORO PER ADMIN - FORCE COLOR */
                       <div className="flex bg-slate-100 p-2 rounded-2xl gap-2 border shadow-inner">
-                        <button onClick={() => updateStato(p.id, 'P')} className={`w-12 h-12 rounded-xl text-[10px] font-black transition-all ${p.stato === 'P' ? 'bg-emerald-500 text-white shadow-lg scale-105' : 'bg-white text-slate-400 hover:text-emerald-500'}`}>P</button>
-                        <button onClick={() => updateStato(p.id, 'AG')} className={`w-12 h-12 rounded-xl text-[10px] font-black transition-all ${p.stato === 'AG' ? 'bg-sky-500 text-white shadow-lg scale-105' : 'bg-white text-slate-400 hover:text-sky-500'}`}>AG</button>
-                        <button onClick={() => updateStato(p.id, 'ANG')} className={`w-12 h-12 rounded-xl text-[10px] font-black transition-all ${p.stato === 'ANG' ? 'bg-red-500 text-white shadow-lg scale-105' : 'bg-white text-slate-400 hover:text-red-500'}`}>ANG</button>
+                        <button 
+                          onClick={() => updateStato(p.id, 'P')} 
+                          className={`w-12 h-12 rounded-xl text-[10px] font-black transition-all ${p.stato === 'P' ? '!bg-emerald-500 !text-white shadow-lg' : 'bg-white text-slate-400 hover:!text-emerald-500'}`}
+                        >P</button>
+                        <button 
+                          onClick={() => updateStato(p.id, 'AG')} 
+                          className={`w-12 h-12 rounded-xl text-[10px] font-black transition-all ${p.stato === 'AG' ? '!bg-sky-500 !text-white shadow-lg' : 'bg-white text-slate-400 hover:!text-sky-500'}`}
+                        >AG</button>
+                        <button 
+                          onClick={() => updateStato(p.id, 'ANG')} 
+                          className={`w-12 h-12 rounded-xl text-[10px] font-black transition-all ${p.stato === 'ANG' ? '!bg-red-500 !text-white shadow-lg' : 'bg-white text-slate-400 hover:!text-red-500'}`}
+                        >ANG</button>
                         <button onClick={() => updateStato(p.id, null)} className="px-2 text-slate-300 hover:text-slate-600 font-bold">×</button>
                       </div>
                     ) : (
-                      <div className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-tighter ${
+                      /* ETICHETTA STATO PER DOCENTE */
+                      <div className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase ${
                         p.stato === 'P' ? 'bg-emerald-50 text-emerald-600' : 
                         p.stato === 'AG' ? 'bg-sky-50 text-sky-600' : 
                         p.stato === 'ANG' ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-400 italic'
@@ -633,17 +646,16 @@ function DocentePanel({ docente, adminMode = false }: any) {
         </div>
       )}
 
-      {/* TAB 3: DOCUMENTI */}
+      {/* TAB DOCUMENTI */}
       {tab === 'documenti' && (
         <div className="grid gap-4 animate-in fade-in">
-          {documenti.length === 0 && <p className="text-center py-20 opacity-30 font-black uppercase text-xs">Nessun documento in bacheca</p>}
           {documenti.map(doc => (
             <div key={doc.id} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex justify-between items-center group hover:shadow-xl transition-all">
               <div className="flex items-center gap-6">
-                <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-3xl">📄</div>
-                <div>
+                <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-3xl shadow-inner">📄</div>
+                <div className="text-left">
                   <h4 className="font-black text-slate-800 uppercase text-lg">{doc.nome}</h4>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">CARICATO IL {new Date(doc.created_at).toLocaleDateString()}</p>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest italic">Pubblicato il {new Date(doc.created_at).toLocaleDateString()}</p>
                 </div>
               </div>
               <a href={doc.url} target="_blank" rel="noreferrer" className="bg-slate-900 text-white px-8 py-4 rounded-2xl text-[10px] font-black uppercase hover:bg-blue-600 shadow-lg transition-all">Download</a>
@@ -652,25 +664,24 @@ function DocentePanel({ docente, adminMode = false }: any) {
         </div>
       )}
 
-      {/* TAB 4: REPORT PDF (PIANO ATTIVITÀ INDIVIDUALE) */}
+      {/* TAB REPORT PDF */}
       {tab === 'report' && (
-        <div id="piano-stampa" className="bg-white p-12 rounded-[3rem] shadow-2xl border animate-in zoom-in">
+        <div id="piano-stampa" className="bg-white p-12 rounded-[3rem] shadow-2xl border animate-in zoom-in text-left">
            <div className="flex justify-between items-start border-b-8 border-slate-900 pb-10 mb-10">
              <div>
                <h1 className="text-5xl font-black uppercase tracking-tighter italic leading-none mb-2">Piano Attività</h1>
                <p className="text-xl font-bold text-blue-700 uppercase">{docente.nome}</p>
              </div>
-             <button onClick={() => window.print()} className="bg-slate-900 text-white px-10 py-5 rounded-2xl text-xs font-black uppercase print:hidden shadow-xl hover:bg-blue-800 transition-all">Stampa PDF / Salva</button>
+             <button onClick={() => window.print()} className="bg-slate-900 text-white px-10 py-5 rounded-2xl text-xs font-black uppercase print:hidden shadow-xl hover:bg-blue-800 transition-all">Stampa / PDF</button>
            </div>
-
            <table className="w-full text-left">
              <thead>
                <tr className="border-b-4 border-slate-100 text-[11px] font-black uppercase text-slate-400">
                  <th className="py-6">Data</th>
                  <th>Attività</th>
                  <th className="text-center">Comma</th>
-                 <th className="text-center">Stato Validazione</th>
-                 <th className="text-right">Ore Effettive</th>
+                 <th className="text-center">Stato</th>
+                 <th className="text-right">Ore</th>
                </tr>
              </thead>
              <tbody>
@@ -681,10 +692,8 @@ function DocentePanel({ docente, adminMode = false }: any) {
                      <td className="py-6">{info?.data}</td>
                      <td className="uppercase">{info?.titolo}</td>
                      <td className="text-center">Comma {p.tipo}</td>
-                     <td className="text-center text-[10px] uppercase font-black tracking-tighter">
-                       <span className={p.stato === 'P' || p.stato === 'AG' ? 'text-emerald-600' : p.stato === 'ANG' ? 'text-red-500' : 'text-orange-400'}>
-                        {p.stato === 'P' ? 'PRESENTE' : p.stato === 'AG' ? 'ASS. GIUST.' : p.stato === 'ANG' ? 'ASS. INGIUST.' : 'IN ATTESA'}
-                       </span>
+                     <td className={`text-center text-[10px] font-black uppercase ${p.stato === 'P' ? 'text-emerald-500' : p.stato === 'AG' ? 'text-sky-500' : p.stato === 'ANG' ? 'text-red-500' : 'text-slate-300'}`}>
+                        {p.stato || 'ATTESA'}
                      </td>
                      <td className="text-right font-black">{p.ore_effettive}H</td>
                    </tr>
@@ -692,26 +701,19 @@ function DocentePanel({ docente, adminMode = false }: any) {
                })}
              </tbody>
            </table>
-
-           <div className="mt-16 grid grid-cols-1 md:grid-cols-2 gap-10">
+           <div className="mt-16 grid grid-cols-2 gap-10">
               <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100">
-                <p className="text-[10px] font-black text-slate-400 uppercase mb-2 italic">Riepilogo Comma A (Validato)</p>
-                <p className="text-4xl font-black text-slate-800">{stats.vA} <span className="text-xl text-slate-300">/ {docente.ore_a_dovute}H</span></p>
-                <div className="w-full bg-slate-200 h-2 mt-4 rounded-full overflow-hidden">
-                  <div className="bg-blue-600 h-full" style={{ width: `${Math.min((stats.vA/docente.ore_a_dovute)*100, 100)}%` }}></div>
-                </div>
+                <p className="text-[10px] font-black text-slate-400 uppercase mb-2 italic tracking-widest">Totale Comma A (Validato)</p>
+                <p className="text-4xl font-black text-slate-800">{stats.vA} / {docente.ore_a_dovute}H</p>
               </div>
               <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100">
-                <p className="text-[10px] font-black text-slate-400 uppercase mb-2 italic">Riepilogo Comma B (Validato)</p>
-                <p className="text-4xl font-black text-slate-800">{stats.vB} <span className="text-xl text-slate-300">/ {docente.ore_b_dovute}H</span></p>
-                <div className="w-full bg-slate-200 h-2 mt-4 rounded-full overflow-hidden">
-                  <div className="bg-indigo-600 h-full" style={{ width: `${Math.min((stats.vB/docente.ore_b_dovute)*100, 100)}%` }}></div>
-                </div>
+                <p className="text-[10px] font-black text-slate-400 uppercase mb-2 italic tracking-widest">Totale Comma B (Validato)</p>
+                <p className="text-4xl font-black text-slate-800">{stats.vB} / {docente.ore_b_dovute}H</p>
               </div>
            </div>
-           <p className="mt-12 text-[10px] text-slate-300 font-bold uppercase text-center italic">Documento generato automaticamente dal sistema gestionale attività.</p>
         </div>
       )}
+
     </div>
   );
 }
