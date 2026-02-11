@@ -470,7 +470,7 @@ function DocentePanel({ docente, adminMode = false }: any) {
   const [documenti, setDocumenti] = useState<any[]>([]);
   const [tab, setTab] = useState('calendario');
 
-  // Caricamento dati sincronizzato
+  // 1. Caricamento dati
   const load = useCallback(async () => {
     const [i, p, d] = await Promise.all([
       supabase.from('impegni').select('*').order('data', { ascending: true }),
@@ -483,72 +483,28 @@ function DocentePanel({ docente, adminMode = false }: any) {
   }, [docente.id]);
 
   useEffect(() => { load(); }, [load]);
-// 1. Funzione per cambiare lo stato (da inserire nel componente)
-const updateStato = async (pianoId: string, nuovoStato: string | null) => {
-  const { error } = await supabase
-    .from('piani')
-    .update({ stato: nuovoStato }) // Usiamo 'stato' e non 'presente'
-    .eq('id', pianoId);
-  
-  if (error) {
-    console.error("Errore aggiornamento:", error);
-    alert("Errore nel salvataggio");
-  } else {
-    load(); // Ricarica i dati per aggiornare le barre e i colori
-  }
-};
 
-// 2. Interfaccia dei pulsanti (da mettere nel ciclo .map del piano)
-{adminMode ? (
-  <div className="flex bg-slate-100 p-2 rounded-2xl gap-2 border shadow-inner">
-    {/* Tasto PRESENTE */}
-    <button 
-      onClick={() => updateStato(p.id, 'P')} 
-      className={`w-12 h-12 rounded-xl text-[10px] font-black transition-all ${p.stato === 'P' ? 'bg-emerald-500 text-white shadow-lg scale-110' : 'bg-white text-slate-400 hover:text-emerald-500'}`}
-      title="Presente"
-    > P </button>
+  // 2. Funzione per cambiare lo stato (UNA SOLA VOLTA)
+  const updateStato = async (pianoId: string, nuovoStato: string | null) => {
+    const { error } = await supabase
+      .from('piani')
+      .update({ stato: nuovoStato })
+      .eq('id', pianoId);
+    
+    if (error) {
+      console.error("Errore:", error);
+      alert("Errore nel salvataggio");
+    } else {
+      load(); 
+    }
+  };
 
-    {/* Tasto ASSENZA GIUSTIFICATA */}
-    <button 
-      onClick={() => updateStato(p.id, 'AG')} 
-      className={`w-12 h-12 rounded-xl text-[10px] font-black transition-all ${p.stato === 'AG' ? 'bg-blue-500 text-white shadow-lg scale-110' : 'bg-white text-slate-400 hover:text-blue-500'}`}
-      title="Assenza Giustificata (Conta come ore fatte)"
-    > AG </button>
-
-    {/* Tasto ASSENZA NON GIUSTIFICATA */}
-    <button 
-      onClick={() => updateStato(p.id, 'ANG')} 
-      className={`w-12 h-12 rounded-xl text-[10px] font-black transition-all ${p.stato === 'ANG' ? 'bg-red-500 text-white shadow-lg scale-110' : 'bg-white text-slate-400 hover:text-red-500'}`}
-      title="Assenza Non Giustificata"
-    > ANG </button>
-
-    {/* Tasto RESET (Torna in attesa) */}
-    <button 
-      onClick={() => updateStato(p.id, null)} 
-      className="w-8 h-12 text-slate-300 font-bold hover:text-slate-600 transition-colors"
-    > × </button>
-  </div>
-) : (
-  /* Vista per il docente (Sola lettura) */
-  <div className={`px-4 py-2 rounded-xl font-black text-[9px] uppercase ${
-    p.stato === 'P' ? 'bg-emerald-100 text-emerald-700' : 
-    p.stato === 'AG' ? 'bg-blue-100 text-blue-700' : 
-    p.stato === 'ANG' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-400'
-  }`}>
-    {p.stato === 'P' ? 'Presente ✓' : p.stato === 'AG' ? 'Ass. Giustificata' : p.stato === 'ANG' ? 'Ass. Ingiustificata' : 'In attesa'}
-  </div>
-)}
-  // LOGICA STATISTICHE: P e AG sommano le ore, ANG e NULL no.
+  // 3. Logica Statistiche (P e AG contano come ore fatte)
   const stats = {
     pA: piani.filter(p => p.tipo === 'A').reduce((s, c) => s + c.ore_effettive, 0),
     pB: piani.filter(p => p.tipo === 'B').reduce((s, c) => s + c.ore_effettive, 0),
     vA: piani.filter(p => p.tipo === 'A' && (p.stato === 'P' || p.stato === 'AG')).reduce((s, c) => s + c.ore_effettive, 0),
     vB: piani.filter(p => p.tipo === 'B' && (p.stato === 'P' || p.stato === 'AG')).reduce((s, c) => s + c.ore_effettive, 0),
-  };
-
-  const updateStato = async (pianoId: string, nuovoStato: string | null) => {
-    await supabase.from('piani').update({ stato: nuovoStato }).eq('id', pianoId);
-    load();
   };
 
   return (
@@ -570,7 +526,6 @@ const updateStato = async (pianoId: string, nuovoStato: string | null) => {
             </div>
           </div>
         </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <ProgressBar label="Validato Comma A (P+AG)" attuale={stats.vA} target={docente.ore_a_dovute} color="blue" />
           <ProgressBar label="Validato Comma B (P+AG)" attuale={stats.vB} target={docente.ore_b_dovute} color="indigo" />
@@ -585,7 +540,7 @@ const updateStato = async (pianoId: string, nuovoStato: string | null) => {
         <button onClick={() => setTab('report')} className={`px-8 py-4 rounded-[1.8rem] text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'report' ? 'bg-white shadow-md text-blue-700' : 'opacity-40 hover:opacity-100'}`}>📄 Report</button>
       </div>
 
-      {/* TAB 1: CALENDARIO GENERALE */}
+      {/* TAB 1: CALENDARIO */}
       {tab === 'calendario' && (
         <div className="grid gap-3 animate-in fade-in slide-in-from-bottom-4">
            {impegni.map(i => {
@@ -604,8 +559,8 @@ const updateStato = async (pianoId: string, nuovoStato: string | null) => {
                    <div className="flex flex-col items-center">
                      <span className="text-[9px] font-black uppercase text-slate-300 mb-1 italic">H. Previste</span>
                      <input 
-                      id={`ore-${i.id}`} type="number" step="0.5" min="0.5" max={i.durata_max || i.ore}
-                      defaultValue={p ? p.ore_effettive : (i.durata_max || i.ore)}
+                      id={`ore-${i.id}`} type="number" step="0.5" min="0.5" max={i.ore}
+                      defaultValue={p ? p.ore_effettive : i.ore}
                       disabled={!!p}
                       className="w-16 bg-slate-50 border-2 border-slate-100 rounded-xl p-2 text-center font-black text-base outline-none focus:border-blue-500"
                      />
@@ -629,73 +584,49 @@ const updateStato = async (pianoId: string, nuovoStato: string | null) => {
            })}
         </div>
       )}
-      
-      {/* --- INIZIO TAB MIEI --- */}
-{tab === 'miei' && (
-  <div className="grid gap-4 animate-in fade-in">
-    {piani.length === 0 ? (
-      <p className="text-center py-20 opacity-30 font-black uppercase text-xs tracking-[.3em]">Nessuna attività prenotata</p>
-    ) : (
-      piani.map(p => {
-        // Questa riga recupera i dettagli dell'impegno (nome, data) collegati alla prenotazione
-        const info = impegni.find(i => i.id === p.impegno_id);
-        
-        return (
-          <div key={p.id} className={`bg-white p-6 rounded-[2rem] border-l-[12px] shadow-sm flex justify-between items-center ${
-            p.stato === 'P' || p.stato === 'AG' ? 'border-l-emerald-500' : p.stato === 'ANG' ? 'border-l-red-500' : 'border-l-orange-400'
-          }`}>
-            
-            {/* PARTE SINISTRA: Info Impegno */}
-            <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase mb-1">{info?.data}</p>
-              <h4 className="text-lg font-black uppercase text-slate-800">{info?.titolo}</h4>
-              <p className="text-xs font-bold text-blue-600 uppercase">Comma {p.tipo} • {p.ore_effettive} Ore</p>
-            </div>
 
-            {/* PARTE DESTRA: Tasti Validazione (Solo se admin) o Stato (Se docente) */}
-            <div className="flex items-center gap-4">
-              {adminMode ? (
-                // --- SCATOLA ADMIN: Mostra i 3 tasti P, AG, ANG ---
-                <div className="flex bg-slate-100 p-2 rounded-2xl gap-2 border shadow-inner">
-                  <button 
-                    onClick={() => updateStato(p.id, 'P')} 
-                    className={`w-12 h-12 rounded-xl text-[10px] font-black transition-all ${p.stato === 'P' ? 'bg-emerald-500 text-white shadow-lg' : 'bg-white text-slate-400 hover:text-emerald-500'}`}
-                  >P</button>
-                  
-                  <button 
-                    onClick={() => updateStato(p.id, 'AG')} 
-                    className={`w-12 h-12 rounded-xl text-[10px] font-black transition-all ${p.stato === 'AG' ? 'bg-blue-500 text-white shadow-lg' : 'bg-white text-slate-400 hover:text-blue-500'}`}
-                  >AG</button>
-                  
-                  <button 
-                    onClick={() => updateStato(p.id, 'ANG')} 
-                    className={`w-12 h-12 rounded-xl text-[10px] font-black transition-all ${p.stato === 'ANG' ? 'bg-red-500 text-white shadow-lg' : 'bg-white text-slate-400 hover:text-red-500'}`}
-                  >ANG</button>
-
-                  <button 
-                    onClick={() => updateStato(p.id, null)} 
-                    className="px-2 text-slate-300 hover:text-slate-600 font-bold"
-                  >×</button>
-                </div>
-              ) : (
-                // --- SCATOLA DOCENTE: Mostra solo l'etichetta colorata ---
-                <div className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-tighter ${
-                  p.stato === 'P' ? 'bg-emerald-50 text-emerald-600' : 
-                  p.stato === 'AG' ? 'bg-blue-50 text-blue-600' : 
-                  p.stato === 'ANG' ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-400 italic'
+      {/* TAB 2: IL MIO PIANO + VALIDAZIONE */}
+      {tab === 'miei' && (
+        <div className="grid gap-4 animate-in fade-in">
+          {piani.length === 0 ? (
+            <p className="text-center py-20 opacity-30 font-black uppercase text-xs tracking-[.3em]">Nessuna attività prenotata</p>
+          ) : (
+            piani.map(p => {
+              const info = impegni.find(i => i.id === p.impegno_id);
+              return (
+                <div key={p.id} className={`bg-white p-6 rounded-[2rem] border-l-[12px] shadow-sm flex justify-between items-center ${
+                  p.stato === 'P' || p.stato === 'AG' ? 'border-l-emerald-500' : p.stato === 'ANG' ? 'border-l-red-500' : 'border-l-orange-400'
                 }`}>
-                  {p.stato === 'P' ? 'Presente ✓' : p.stato === 'AG' ? 'Ass. Giustificata' : p.stato === 'ANG' ? 'Ass. Ingiustificata' : 'In attesa'}
-                </div>
-              )}
-            </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase mb-1">{info?.data}</p>
+                    <h4 className="text-lg font-black uppercase text-slate-800">{info?.titolo}</h4>
+                    <p className="text-xs font-bold text-blue-600 uppercase">Comma {p.tipo} • {p.ore_effettive} Ore</p>
+                  </div>
 
-          </div>
-        );
-      })
-    )}
-  </div>
-)}
-{/* --- FINE TAB MIEI --- */}
+                  <div className="flex items-center gap-4">
+                    {adminMode ? (
+                      <div className="flex bg-slate-100 p-2 rounded-2xl gap-2 border shadow-inner">
+                        <button onClick={() => updateStato(p.id, 'P')} className={`w-12 h-12 rounded-xl text-[10px] font-black transition-all ${p.stato === 'P' ? 'bg-emerald-500 text-white shadow-lg' : 'bg-white text-slate-400 hover:text-emerald-500'}`}>P</button>
+                        <button onClick={() => updateStato(p.id, 'AG')} className={`w-12 h-12 rounded-xl text-[10px] font-black transition-all ${p.stato === 'AG' ? 'bg-blue-500 text-white shadow-lg' : 'bg-white text-slate-400 hover:text-blue-500'}`}>AG</button>
+                        <button onClick={() => updateStato(p.id, 'ANG')} className={`w-12 h-12 rounded-xl text-[10px] font-black transition-all ${p.stato === 'ANG' ? 'bg-red-500 text-white shadow-lg' : 'bg-white text-slate-400 hover:text-red-500'}`}>ANG</button>
+                        <button onClick={() => updateStato(p.id, null)} className="px-2 text-slate-300 hover:text-slate-600 font-bold">×</button>
+                      </div>
+                    ) : (
+                      <div className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-tighter ${
+                        p.stato === 'P' ? 'bg-emerald-50 text-emerald-600' : 
+                        p.stato === 'AG' ? 'bg-blue-50 text-blue-600' : 
+                        p.stato === 'ANG' ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-400 italic'
+                      }`}>
+                        {p.stato === 'P' ? 'Presente ✓' : p.stato === 'AG' ? 'Ass. Giustificata' : p.stato === 'ANG' ? 'Ass. Ingiustificata' : 'In attesa'}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
 
       {/* TAB 3: DOCUMENTI */}
       {tab === 'documenti' && (
@@ -743,7 +674,9 @@ const updateStato = async (pianoId: string, nuovoStato: string | null) => {
                      <td className="py-6">{info?.data}</td>
                      <td className="uppercase">{info?.titolo}</td>
                      <td className="text-center">Comma {p.tipo}</td>
-                     <td className="text-center text-[10px] uppercase">{p.stato || 'Attesa'}</td>
+                     <td className="text-center text-[10px] uppercase font-black tracking-tighter">
+                       {p.stato === 'P' ? 'PRESENTE' : p.stato === 'AG' ? 'ASS. GIUST.' : p.stato === 'ANG' ? 'ASS. INGIUST.' : 'ATTESA'}
+                     </td>
                      <td className="text-right font-black">{p.ore_effettive}H</td>
                    </tr>
                  );
