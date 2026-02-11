@@ -483,7 +483,61 @@ function DocentePanel({ docente, adminMode = false }: any) {
   }, [docente.id]);
 
   useEffect(() => { load(); }, [load]);
+// 1. Funzione per cambiare lo stato (da inserire nel componente)
+const updateStato = async (pianoId: string, nuovoStato: string | null) => {
+  const { error } = await supabase
+    .from('piani')
+    .update({ stato: nuovoStato }) // Usiamo 'stato' e non 'presente'
+    .eq('id', pianoId);
+  
+  if (error) {
+    console.error("Errore aggiornamento:", error);
+    alert("Errore nel salvataggio");
+  } else {
+    load(); // Ricarica i dati per aggiornare le barre e i colori
+  }
+};
 
+// 2. Interfaccia dei pulsanti (da mettere nel ciclo .map del piano)
+{adminMode ? (
+  <div className="flex bg-slate-100 p-2 rounded-2xl gap-2 border shadow-inner">
+    {/* Tasto PRESENTE */}
+    <button 
+      onClick={() => updateStato(p.id, 'P')} 
+      className={`w-12 h-12 rounded-xl text-[10px] font-black transition-all ${p.stato === 'P' ? 'bg-emerald-500 text-white shadow-lg scale-110' : 'bg-white text-slate-400 hover:text-emerald-500'}`}
+      title="Presente"
+    > P </button>
+
+    {/* Tasto ASSENZA GIUSTIFICATA */}
+    <button 
+      onClick={() => updateStato(p.id, 'AG')} 
+      className={`w-12 h-12 rounded-xl text-[10px] font-black transition-all ${p.stato === 'AG' ? 'bg-blue-500 text-white shadow-lg scale-110' : 'bg-white text-slate-400 hover:text-blue-500'}`}
+      title="Assenza Giustificata (Conta come ore fatte)"
+    > AG </button>
+
+    {/* Tasto ASSENZA NON GIUSTIFICATA */}
+    <button 
+      onClick={() => updateStato(p.id, 'ANG')} 
+      className={`w-12 h-12 rounded-xl text-[10px] font-black transition-all ${p.stato === 'ANG' ? 'bg-red-500 text-white shadow-lg scale-110' : 'bg-white text-slate-400 hover:text-red-500'}`}
+      title="Assenza Non Giustificata"
+    > ANG </button>
+
+    {/* Tasto RESET (Torna in attesa) */}
+    <button 
+      onClick={() => updateStato(p.id, null)} 
+      className="w-8 h-12 text-slate-300 font-bold hover:text-slate-600 transition-colors"
+    > × </button>
+  </div>
+) : (
+  /* Vista per il docente (Sola lettura) */
+  <div className={`px-4 py-2 rounded-xl font-black text-[9px] uppercase ${
+    p.stato === 'P' ? 'bg-emerald-100 text-emerald-700' : 
+    p.stato === 'AG' ? 'bg-blue-100 text-blue-700' : 
+    p.stato === 'ANG' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-400'
+  }`}>
+    {p.stato === 'P' ? 'Presente ✓' : p.stato === 'AG' ? 'Ass. Giustificata' : p.stato === 'ANG' ? 'Ass. Ingiustificata' : 'In attesa'}
+  </div>
+)}
   // LOGICA STATISTICHE: P e AG sommano le ore, ANG e NULL no.
   const stats = {
     pA: piani.filter(p => p.tipo === 'A').reduce((s, c) => s + c.ore_effettive, 0),
@@ -575,45 +629,73 @@ function DocentePanel({ docente, adminMode = false }: any) {
            })}
         </div>
       )}
+      
+      {/* --- INIZIO TAB MIEI --- */}
+{tab === 'miei' && (
+  <div className="grid gap-4 animate-in fade-in">
+    {piani.length === 0 ? (
+      <p className="text-center py-20 opacity-30 font-black uppercase text-xs tracking-[.3em]">Nessuna attività prenotata</p>
+    ) : (
+      piani.map(p => {
+        // Questa riga recupera i dettagli dell'impegno (nome, data) collegati alla prenotazione
+        const info = impegni.find(i => i.id === p.impegno_id);
+        
+        return (
+          <div key={p.id} className={`bg-white p-6 rounded-[2rem] border-l-[12px] shadow-sm flex justify-between items-center ${
+            p.stato === 'P' || p.stato === 'AG' ? 'border-l-emerald-500' : p.stato === 'ANG' ? 'border-l-red-500' : 'border-l-orange-400'
+          }`}>
+            
+            {/* PARTE SINISTRA: Info Impegno */}
+            <div>
+              <p className="text-[10px] font-black text-slate-400 uppercase mb-1">{info?.data}</p>
+              <h4 className="text-lg font-black uppercase text-slate-800">{info?.titolo}</h4>
+              <p className="text-xs font-bold text-blue-600 uppercase">Comma {p.tipo} • {p.ore_effettive} Ore</p>
+            </div>
 
-      {/* TAB 2: IL MIO PIANO + VALIDAZIONE */}
-      {tab === 'miei' && (
-        <div className="grid gap-4">
-          {piani.map(p => {
-            const info = impegni.find(i => i.id === p.impegno_id);
-            return (
-              <div key={p.id} className={`bg-white p-8 rounded-[2.5rem] border-l-[16px] shadow-md flex justify-between items-center ${
-                p.stato === 'P' || p.stato === 'AG' ? 'border-l-emerald-500' : p.stato === 'ANG' ? 'border-l-red-500' : 'border-l-orange-400'
-              }`}>
-                <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase mb-1">{info?.data}</p>
-                  <h4 className="text-xl font-black uppercase text-slate-800">{info?.titolo}</h4>
-                  <p className="font-bold text-sm text-blue-600 uppercase">Comma {p.tipo} • {p.ore_effettive} Ore</p>
-                </div>
+            {/* PARTE DESTRA: Tasti Validazione (Solo se admin) o Stato (Se docente) */}
+            <div className="flex items-center gap-4">
+              {adminMode ? (
+                // --- SCATOLA ADMIN: Mostra i 3 tasti P, AG, ANG ---
+                <div className="flex bg-slate-100 p-2 rounded-2xl gap-2 border shadow-inner">
+                  <button 
+                    onClick={() => updateStato(p.id, 'P')} 
+                    className={`w-12 h-12 rounded-xl text-[10px] font-black transition-all ${p.stato === 'P' ? 'bg-emerald-500 text-white shadow-lg' : 'bg-white text-slate-400 hover:text-emerald-500'}`}
+                  >P</button>
+                  
+                  <button 
+                    onClick={() => updateStato(p.id, 'AG')} 
+                    className={`w-12 h-12 rounded-xl text-[10px] font-black transition-all ${p.stato === 'AG' ? 'bg-blue-500 text-white shadow-lg' : 'bg-white text-slate-400 hover:text-blue-500'}`}
+                  >AG</button>
+                  
+                  <button 
+                    onClick={() => updateStato(p.id, 'ANG')} 
+                    className={`w-12 h-12 rounded-xl text-[10px] font-black transition-all ${p.stato === 'ANG' ? 'bg-red-500 text-white shadow-lg' : 'bg-white text-slate-400 hover:text-red-500'}`}
+                  >ANG</button>
 
-                <div className="flex items-center gap-4">
-                  {adminMode ? (
-                    <div className="flex bg-slate-100 p-2 rounded-2xl gap-2 border">
-                      <button onClick={() => updateStato(p.id, 'P')} className={`w-12 h-12 rounded-xl text-xs font-black transition-all ${p.stato === 'P' ? 'bg-emerald-500 text-white shadow-lg' : 'bg-white text-slate-400 hover:text-emerald-500'}`}>P</button>
-                      <button onClick={() => updateStato(p.id, 'AG')} className={`w-12 h-12 rounded-xl text-xs font-black transition-all ${p.stato === 'AG' ? 'bg-blue-500 text-white shadow-lg' : 'bg-white text-slate-400 hover:text-blue-500'}`}>AG</button>
-                      <button onClick={() => updateStato(p.id, 'ANG')} className={`w-12 h-12 rounded-xl text-xs font-black transition-all ${p.stato === 'ANG' ? 'bg-red-500 text-white shadow-lg' : 'bg-white text-slate-400 hover:text-red-500'}`}>ANG</button>
-                      <button onClick={() => updateStato(p.id, null)} className="w-12 h-12 text-slate-300 font-bold hover:text-slate-600">×</button>
-                    </div>
-                  ) : (
-                    <div className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-tighter ${
-                      p.stato === 'P' ? 'bg-emerald-50 text-emerald-600' : 
-                      p.stato === 'AG' ? 'bg-blue-50 text-blue-600' : 
-                      p.stato === 'ANG' ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-400 italic'
-                    }`}>
-                      {p.stato === 'P' ? 'Presente ✓' : p.stato === 'AG' ? 'Ass. Giustificata' : p.stato === 'ANG' ? 'Ass. Ingiustificata' : 'In attesa'}
-                    </div>
-                  )}
+                  <button 
+                    onClick={() => updateStato(p.id, null)} 
+                    className="px-2 text-slate-300 hover:text-slate-600 font-bold"
+                  >×</button>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+              ) : (
+                // --- SCATOLA DOCENTE: Mostra solo l'etichetta colorata ---
+                <div className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-tighter ${
+                  p.stato === 'P' ? 'bg-emerald-50 text-emerald-600' : 
+                  p.stato === 'AG' ? 'bg-blue-50 text-blue-600' : 
+                  p.stato === 'ANG' ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-400 italic'
+                }`}>
+                  {p.stato === 'P' ? 'Presente ✓' : p.stato === 'AG' ? 'Ass. Giustificata' : p.stato === 'ANG' ? 'Ass. Ingiustificata' : 'In attesa'}
+                </div>
+              )}
+            </div>
+
+          </div>
+        );
+      })
+    )}
+  </div>
+)}
+{/* --- FINE TAB MIEI --- */}
 
       {/* TAB 3: DOCUMENTI */}
       {tab === 'documenti' && (
