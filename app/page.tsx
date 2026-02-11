@@ -532,12 +532,40 @@ function DocentePanel({ docente, adminMode = false }: any) {
       </div>
 
       {/* NAVIGAZIONE */}
-      <div className="flex flex-wrap justify-center gap-2 mb-10 bg-slate-100 p-2 rounded-[2.5rem] w-fit mx-auto border shadow-inner">
-        <button onClick={() => setTab('calendario')} className={`px-8 py-4 rounded-[1.8rem] text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'calendario' ? 'bg-white shadow-md text-blue-700' : 'opacity-40 hover:opacity-100'}`}>📅 Calendario</button>
-        <button onClick={() => setTab('miei')} className={`px-8 py-4 rounded-[1.8rem] text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'miei' ? 'bg-white shadow-md text-blue-700' : 'opacity-40 hover:opacity-100'}`}>✅ Il Mio Piano</button>
-        <button onClick={() => setTab('documenti')} className={`px-8 py-4 rounded-[1.8rem] text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'documenti' ? 'bg-white shadow-md text-blue-700' : 'opacity-40 hover:opacity-100'}`}>📂 Documenti</button>
-        <button onClick={() => setTab('report')} className={`px-8 py-4 rounded-[1.8rem] text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'report' ? 'bg-white shadow-md text-blue-700' : 'opacity-40 hover:opacity-100'}`}>📄 Report</button>
-      </div>
+   <div className="flex bg-slate-100 p-2 rounded-2xl gap-2 border shadow-inner">
+  {/* Tasto P - VERDE */}
+  <button 
+    onClick={() => updateStato(p.id, 'P')} 
+    className={`w-12 h-12 rounded-xl text-[10px] font-black transition-all ${
+      p.stato === 'P' ? 'bg-emerald-500 text-white shadow-lg scale-110' : 'bg-white text-slate-400 hover:text-emerald-500'
+    }`}
+    title="Presente"
+  > P </button>
+
+  {/* Tasto AG - BLU (Giustificata) */}
+  <button 
+    onClick={() => updateStato(p.id, 'AG')} 
+    className={`w-12 h-12 rounded-xl text-[10px] font-black transition-all ${
+      p.stato === 'AG' ? 'bg-sky-500 text-white shadow-lg scale-110' : 'bg-white text-slate-400 hover:text-sky-500'
+    }`}
+    title="Assenza Giustificata"
+  > AG </button>
+
+  {/* Tasto ANG - ROSSO (Ingiustificata) */}
+  <button 
+    onClick={() => updateStato(p.id, 'ANG')} 
+    className={`w-12 h-12 rounded-xl text-[10px] font-black transition-all ${
+      p.stato === 'ANG' ? 'bg-red-500 text-white shadow-lg scale-110' : 'bg-white text-slate-400 hover:text-red-500'
+    }`}
+    title="Assenza Non Giustificata"
+  > ANG </button>
+
+  {/* Tasto RESET */}
+  <button 
+    onClick={() => updateStato(p.id, null)} 
+    className="w-8 h-12 text-slate-300 font-bold hover:text-slate-600 transition-colors"
+  > × </button>
+</div>
 
       {/* TAB 1: CALENDARIO */}
       {tab === 'calendario' && (
