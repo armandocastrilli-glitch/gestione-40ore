@@ -188,13 +188,26 @@ function AdminPanel() {
     } else { alert("Errore: " + error.message); }
   };
 
-  const saveImpegno = async () => {
-    if (!formImp.titolo || !formImp.data) return alert("Dati incompleti.");
-    const { error } = await supabase.from('impegni').insert([{
-      titolo: formImp.titolo, data: formImp.data, durata_max: Number(formImp.ore), tipo: formImp.tipo
-    }]);
-    if (!error) { setTab('appello'); loadData(); }
-  };
+const saveImpegno = async () => {
+  if (!formImp.titolo || !formImp.data) return alert("Inserisci Titolo e Data!");
+
+  const { error } = await supabase.from('impegni').insert([{
+    titolo: formImp.titolo, 
+    data: formImp.data, 
+    durata_max: Number(formImp.ore), 
+    tipo: formImp.tipo
+  }]);
+
+  if (error) {
+    console.error("Errore:", error);
+    alert("ERRORE DB: " + error.message); 
+  } else {
+    alert("✅ ATTIVITÀ SALVATA!");
+    setFormImp({ titolo: '', data: '', ore: 2, tipo: 'A' });
+    setTab('appello'); 
+    loadData(); 
+  }
+};
 
   return (
     <main className="max-w-[1400px] mx-auto p-6 lg:p-10">
