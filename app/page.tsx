@@ -189,36 +189,30 @@ function AdminPanel() {
   };
 
 const saveImpegno = async () => {
-    // 1. Validazione locale
-    if (!formImp.titolo || !formImp.data) {
-      return alert("Inserire titolo e data dell'attività");
-    }
+  // 1. Controllo validità
+  if (!formImp.titolo || !formImp.data) {
+    return alert("⚠️ Inserisci Titolo e Data!");
+  }
 
-    // 2. Inserimento nel database
-    const { error } = await supabase.from('impegni').insert([
-      {
-        titolo: formImp.titolo,
-        data: formImp.data,
-        durata_max: Number(formImp.ore), // Assicurati che su Supabase si chiami 'durata_max'
-        tipo: formImp.tipo
-      }
-    ]);
+  // 2. Invio dati
+  const { error } = await supabase.from('impegni').insert([{
+    titolo: formImp.titolo, 
+    data: formImp.data, 
+    tipo: formImp.tipo,
+    ore: Number(formImp.ore) // Usiamo 'ore' perché il tuo DB la richiede
+  }]);
 
-    // 3. Gestione risposta
-    if (error) {
-      console.error("Errore salvataggio:", error);
-      alert("Errore nel salvataggio: " + error.message);
-    } else {
-      alert("✅ Attività pubblicata con successo!");
-      
-      // Reset dei campi del form
-      setFormImp({ titolo: '', data: '', ore: 2, tipo: 'A' });
-      
-      // Cambia tab per vedere l'appello e ricarica i dati
-      setTab('appello');
-      loadData();
-    }
-  };
+  // 3. Risposta
+  if (error) {
+    console.error("Errore:", error);
+    alert("❌ Errore: " + error.message); 
+  } else {
+    alert("✅ ATTIVITÀ SALVATA!");
+    setFormImp({ titolo: '', data: '', ore: 2, tipo: 'A' });
+    setTab('appello'); 
+    loadData(); 
+  }
+};
 
   return (
     <main className="max-w-[1400px] mx-auto p-6 lg:p-10">
