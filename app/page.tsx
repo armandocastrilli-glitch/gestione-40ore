@@ -213,18 +213,7 @@ const saveImpegno = async () => {
     loadData(); 
   }
 };
-const deleteImpegno = async (id: string) => {
-  if(!confirm("⚠️ ATTENZIONE: Eliminando l'attività cancellerai anche tutte le ore registrate dai docenti per questo impegno. Confermi?")) return;
-  
-  const { error } = await supabase.from('impegni').delete().eq('id', id);
-  
-  if(error) {
-    alert("Errore durante l'eliminazione: " + error.message);
-  } else {
-    setActiveImp(null); // Deseleziona l'impegno corrente
-    loadData(); // Ricarica la lista
-  }
-};
+
   return (
     <main className="max-w-[1400px] mx-auto p-6 lg:p-10">
       
