@@ -189,25 +189,36 @@ function AdminPanel() {
   };
 
 const saveImpegno = async () => {
-  if (!formImp.titolo || !formImp.data) return alert("Inserisci Titolo e Data!");
+    // 1. Validazione locale
+    if (!formImp.titolo || !formImp.data) {
+      return alert("Inserire titolo e data dell'attività");
+    }
 
-  const { error } = await supabase.from('impegni').insert([{
-    titolo: formImp.titolo, 
-    data: formImp.data, 
-    durata_max: Number(formImp.ore), 
-    tipo: formImp.tipo
-  }]);
+    // 2. Inserimento nel database
+    const { error } = await supabase.from('impegni').insert([
+      {
+        titolo: formImp.titolo,
+        data: formImp.data,
+        durata_max: Number(formImp.ore), // Assicurati che su Supabase si chiami 'durata_max'
+        tipo: formImp.tipo
+      }
+    ]);
 
-  if (error) {
-    console.error("Errore:", error);
-    alert("ERRORE DB: " + error.message); 
-  } else {
-    alert("✅ ATTIVITÀ SALVATA!");
-    setFormImp({ titolo: '', data: '', ore: 2, tipo: 'A' });
-    setTab('appello'); 
-    loadData(); 
-  }
-};
+    // 3. Gestione risposta
+    if (error) {
+      console.error("Errore salvataggio:", error);
+      alert("Errore nel salvataggio: " + error.message);
+    } else {
+      alert("✅ Attività pubblicata con successo!");
+      
+      // Reset dei campi del form
+      setFormImp({ titolo: '', data: '', ore: 2, tipo: 'A' });
+      
+      // Cambia tab per vedere l'appello e ricarica i dati
+      setTab('appello');
+      loadData();
+    }
+  };
 
   return (
     <main className="max-w-[1400px] mx-auto p-6 lg:p-10">
