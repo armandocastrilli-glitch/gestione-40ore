@@ -6,7 +6,7 @@ import * as XLSX from 'xlsx';
 
 // Configura Supabase con le tue credenziali
 const SUPABASE_URL = "https://tvjcpczzlqtwtefvnrhk.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOi..."; // Inserisci la tua anon key completa
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR2amNwY3p6bHF0d3RlZnZucmhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1NzAzMTcsImV4cCI6MjA4NjE0NjMxN30.w2VzO83AGEUERjs6_d0NnSghQU1SeZNguNZe171ZPK4"; // Inserisci la tua anon key completa
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const ADMIN_PASSWORD = "admin";
