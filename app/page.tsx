@@ -504,117 +504,136 @@ function AdminPanel() {
         </div>
       )}
 
-      {tab === 'appello' && (
-        <div className="grid lg:grid-cols-2 gap-8 animate-in fade-in">
-          <div className="space-y-3">
-            <h3 className="text-[9px] font-black uppercase text-slate-400 ml-5 tracking-widest">Attività Recenti</h3>
-            {data.impegni.map((i: any) => (
-              <div 
-                key={i.id} 
-                onClick={() => setActiveImp(i.id)} 
-                className={`p-6 rounded-[2.5rem] border-4 cursor-pointer transition-all flex justify-between items-center ${activeImp === i.id ? 'bg-white border-blue-700 shadow-xl' : 'bg-white border-transparent shadow-sm'}`}
-              >
-                <div>
-                  <span className={`text-[8px] font-black px-2 py-0.5 rounded-full mb-2 inline-block ${i.tipo === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'}`}>COMMA {i.tipo}</span>
-                  <h4 className="font-black uppercase text-lg tracking-tighter">{i.titolo}</h4>
-                  <p className="text-[9px] font-bold text-slate-300 uppercase italic">{i.data} • {i.ore}H</p>
-                </div>
+    const calcolaOreDovute = (tipoContratto: string, ore: number, mesi: number) => {
+  let oreATot = 40;
+  let oreBTot = 40;
+  if (tipoContratto === 'INTERA') {
+    const base = 80 * (mesi / 9);
+    oreATot = Math.floor(base / 2);
+    oreBTot = Math.ceil(base / 2);
+  } else if (tipoContratto === 'COMPLETAMENTO') {
+    const base = (80 / 18) * ore * (mesi / 9);
+    oreATot = Math.floor(base / 2);
+    oreBTot = Math.ceil(base / 2);
+  } else if (tipoContratto === 'SPEZZONE') {
+    oreATot = Math.floor(40 * (mesi / 9));
+    const baseB = (40 / 18) * ore * (mesi / 9);
+    oreBTot = Math.ceil(baseB);
+  }
+  return { oreATot, oreBTot };
+};
 
-                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                  <button onClick={() => startEditImpegno(i)} className="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all">✏️</button>
-                  <button onClick={() => deleteImpegno(i.id)} className="p-3 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all">🗑️</button>
-                </div>
+{tab === 'appello' && (
+  <div className="grid lg:grid-cols-2 gap-8 animate-in fade-in">
+    <div className="space-y-3">
+      <h3 className="text-[9px] font-black uppercase text-slate-400 ml-5 tracking-widest">Attività Recenti</h3>
+      {data.impegni.map((i: any) => (
+        <div 
+          key={i.id} 
+          onClick={() => setActiveImp(i.id)} 
+          className={`p-6 rounded-[2.5rem] border-4 cursor-pointer transition-all flex justify-between items-center ${activeImp === i.id ? 'bg-white border-blue-700 shadow-xl' : 'bg-white border-transparent shadow-sm'}`}
+        >
+          <div>
+            <span className={`text-[8px] font-black px-2 py-0.5 rounded-full mb-2 inline-block ${i.tipo === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'}`}>COMMA {i.tipo}</span>
+            <h4 className="font-black uppercase text-lg tracking-tighter">{i.titolo}</h4>
+            <p className="text-[9px] font-bold text-slate-300 uppercase italic">{i.data} • {i.ore}H</p>
+          </div>
+
+          <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => startEditImpegno(i)} className="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all">✏️</button>
+            <button onClick={() => deleteImpegno(i.id)} className="p-3 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all">🗑️</button>
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <div className="bg-white p-8 rounded-[3.5rem] shadow-2xl border sticky top-28 min-h-[450px]">
+      <h3 className="text-xl font-black mb-6 uppercase italic underline decoration-blue-100 underline-offset-4">Appello</h3>
+      <div className="space-y-3">
+        {data.piani.filter((p: any) => p.impegno_id === activeImp).map((p: any) => {
+          const d = data.docenti.find((x: any) => x.id === p.docente_id);
+          return (
+            <div key={p.id} className="p-5 bg-slate-50 rounded-[1.8rem] flex justify-between items-center">
+              <div>
+                <p className="font-black uppercase text-[11px] text-slate-800">{d?.nome || 'Docente'}</p>
+                <p className="text-[9px] font-bold text-blue-600 uppercase">{p.ore_effettive}H</p>
               </div>
-            ))}
-          </div>
-
-          <div className="bg-white p-8 rounded-[3.5rem] shadow-2xl border sticky top-28 min-h-[450px]">
-            <h3 className="text-xl font-black mb-6 uppercase italic underline decoration-blue-100 underline-offset-4">Appello</h3>
-            <div className="space-y-3">
-              {data.piani.filter((p: any) => p.impegno_id === activeImp).map((p: any) => {
-                const d = data.docenti.find((x: any) => x.id === p.docente_id);
-                return (
-                  <div key={p.id} className="p-5 bg-slate-50 rounded-[1.8rem] flex justify-between items-center">
-                    <div>
-                      <p className="font-black uppercase text-[11px] text-slate-800">{d?.nome || 'Docente'}</p>
-                      <p className="text-[9px] font-bold text-blue-600 uppercase">{p.ore_effettive}H</p>
-                    </div>
-                    <div className="flex bg-white p-1 rounded-full gap-1 border">
-                      {['P', 'AG', 'ANG'].map((s) => (
-                        <button
-                          key={s}
-                          onClick={async () => { 
-                            await supabase.from('piani').update({ stato: p.stato === s ? null : s }).eq('id', p.id); 
-                            loadData(); 
-                          }}
-                          className={`w-8 h-8 rounded-full text-[8px] font-black transition-all ${p.stato === s ? 'bg-slate-900 text-white' : 'text-slate-300 hover:bg-slate-100'}`}
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-              {!activeImp && <div className="text-center py-24 opacity-20 font-black uppercase text-[10px] tracking-[0.4em]">Scegli un impegno</div>}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {tab === 'documenti' && (
-        <div className="bg-white p-10 rounded-[3.5rem] shadow-2xl border animate-in zoom-in">
-          <div className="grid lg:grid-cols-2 gap-12">
-            <div className="bg-slate-50 p-10 rounded-[2.5rem] border-4 border-dashed border-slate-200 text-center flex flex-col items-center justify-center">
-              <input 
-                type="file" 
-                className="text-[9px] font-black uppercase text-slate-400 cursor-pointer file:bg-slate-900 file:text-white file:rounded-full file:px-6 file:py-2.5 file:border-0" 
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if(!file) return;
-                  const fileName = `${Date.now()}_${file.name}`;
-                  const { error: upErr } = await supabase.storage.from('files').upload(fileName, file);
-                  if(upErr) return alert("Errore upload");
-                  const { data: { publicUrl } } = supabase.storage.from('files').getPublicUrl(fileName);
-                  await supabase.from('documenti').insert([{ nome: file.name, url: publicUrl, storage_path: fileName }]);
-                  loadData();
-                  alert("File caricato!");
-                }} 
-              />
-            </div>
-            <div className="space-y-3">
-              <h3 className="text-[9px] font-black uppercase text-slate-300 mb-5 tracking-widest italic">Documenti Pubblicati</h3>
-              {data.docs.map((doc: any) => (
-                <div key={doc.id} className="p-5 bg-white border border-slate-100 rounded-[1.8rem] flex justify-between items-center shadow-sm">
-                   <span className="font-black uppercase text-[10px] text-slate-700">{doc.nome}</span>
-                   <button 
-                    onClick={async () => {
-                      if(confirm("Eliminare?")) {
-                        await supabase.storage.from('files').remove([doc.storage_path]);
-                        await supabase.from('documenti').delete().eq('id', doc.id);
-                        loadData();
-                      }
+              <div className="flex bg-white p-1 rounded-full gap-1 border">
+                {['P', 'AG', 'ANG'].map((s) => (
+                  <button
+                    key={s}
+                    onClick={async () => { 
+                      await supabase.from('piani').update({ stato: p.stato === s ? null : s }).eq('id', p.id); 
+                      loadData(); 
                     }}
-                    className="text-red-500 font-black text-[9px] uppercase"
-                   >Elimina</button>
-                </div>
-              ))}
+                    className={`w-8 h-8 rounded-full text-[8px] font-black transition-all ${p.stato === s ? 'bg-slate-900 text-white' : 'text-slate-300 hover:bg-slate-100'}`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          );
+        })}
+        {!activeImp && <div className="text-center py-24 opacity-20 font-black uppercase text-[10px] tracking-[0.4em]">Scegli un impegno</div>}
+      </div>
+    </div>
+  </div>
+)}
 
-      {selDoc && (
-        <div className="mt-12 border-t-[8px] border-slate-900 pt-12">
-          <div className="flex justify-between items-center mb-6">
-             <h2 className="text-xl font-black uppercase tracking-widest">Dettaglio: {selDoc.nome}</h2>
-             <button onClick={() => setSelDoc(null)} className="text-slate-400 font-bold uppercase text-xs">Chiudi X</button>
+{tab === 'documenti' && (
+  <div className="bg-white p-10 rounded-[3.5rem] shadow-2xl border animate-in zoom-in">
+    <div className="grid lg:grid-cols-2 gap-12">
+      <div className="bg-slate-50 p-10 rounded-[2.5rem] border-4 border-dashed border-slate-200 text-center flex flex-col items-center justify-center">
+        <input 
+          type="file" 
+          className="text-[9px] font-black uppercase text-slate-400 cursor-pointer file:bg-slate-900 file:text-white file:rounded-full file:px-6 file:py-2.5 file:border-0" 
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            if(!file) return;
+            const fileName = `${Date.now()}_${file.name}`;
+            const { error: upErr } = await supabase.storage.from('files').upload(fileName, file);
+            if(upErr) return alert("Errore upload");
+            const { data: { publicUrl } } = supabase.storage.from('files').getPublicUrl(fileName);
+            await supabase.from('documenti').insert([{ nome: file.name, url: publicUrl, storage_path: fileName }]);
+            loadData();
+            alert("File caricato!");
+          }} 
+        />
+      </div>
+      <div className="space-y-3">
+        <h3 className="text-[9px] font-black uppercase text-slate-300 mb-5 tracking-widest italic">Documenti Pubblicati</h3>
+        {data.docs.map((doc: any) => (
+          <div key={doc.id} className="p-5 bg-white border border-slate-100 rounded-[1.8rem] flex justify-between items-center shadow-sm">
+             <span className="font-black uppercase text-[10px] text-slate-700">{doc.nome}</span>
+             <button 
+              onClick={async () => {
+                if(confirm("Eliminare?")) {
+                  await supabase.storage.from('files').remove([doc.storage_path]);
+                  await supabase.from('documenti').delete().eq('id', doc.id);
+                  loadData();
+                }
+              }}
+              className="text-red-500 font-black text-[9px] uppercase"
+             >Elimina</button>
           </div>
-          <DocentePanel docente={selDoc} adminMode={true} />
-        </div>
-      )}
+        ))}
+      </div>
+    </div>
+  </div>
+)}
 
-    </main>
+{selDoc && (
+  <div className="mt-12 border-t-[8px] border-slate-900 pt-12">
+    <div className="flex justify-between items-center mb-6">
+       <h2 className="text-xl font-black uppercase tracking-widest">Dettaglio: {selDoc.nome}</h2>
+       <button onClick={() => setSelDoc(null)} className="text-slate-400 font-bold uppercase text-xs">Chiudi X</button>
+    </div>
+    <DocentePanel docente={selDoc} adminMode={true} />
+  </div>
+)}
+
+</main>
   );
 }
 
@@ -624,12 +643,27 @@ function DocentePanel({ docente, adminMode = false }: any) {
   const [documenti, setDocumenti] = useState<any[]>([]);
   const [tab, setTab] = useState('calendario');
 
-  // Stati per la modifica del contratto (attivi se adminMode è true)
+  // Stati per la modifica del contratto (inclusi mesi e ricalcolo automatico)
   const [isEditingContract, setIsEditingContract] = useState(false);
   const [contratto, setContratto] = useState(docente.contratto || 'INTERA');
   const [oreSettimanali, setOreSettimanali] = useState(docente.ore_settimanali || 18);
+  const [mesiServizio, setMesiServizio] = useState(docente.mesi_servizio || 9);
   const [oreADovute, setOreADovute] = useState(docente.ore_a_dovute || 40);
   const [oreBDovute, setOreBDovute] = useState(docente.ore_b_dovute || 40);
+
+  const handleContrattoChange = (nuovoContratto?: string, nuoveOre?: number, nuoviMesi?: number) => {
+    const c = nuovoContratto !== undefined ? nuovoContratto : contratto;
+    const o = nuoveOre !== undefined ? nuoveOre : oreSettimanali;
+    const m = nuoviMesi !== undefined ? nuoviMesi : mesiServizio;
+
+    if (nuovoContratto !== undefined) setContratto(c);
+    if (nuoveOre !== undefined) setOreSettimanali(o);
+    if (nuoviMesi !== undefined) setMesiServizio(m);
+
+    const { oreATot, oreBTot } = calcolaOreDovute(c, Number(o), Number(m));
+    setOreADovute(oreATot);
+    setOreBDovute(oreBTot);
+  };
 
   const load = useCallback(async () => {
     const [i, p, d] = await Promise.all([
@@ -664,6 +698,7 @@ function DocentePanel({ docente, adminMode = false }: any) {
       .update({
         contratto,
         ore_settimanali: Number(oreSettimanali),
+        mesi_servizio: Number(mesiServizio),
         ore_a_dovute: Number(oreADovute),
         ore_b_dovute: Number(oreBDovute)
       })
@@ -676,6 +711,7 @@ function DocentePanel({ docente, adminMode = false }: any) {
       setIsEditingContract(false);
       docente.contratto = contratto;
       docente.ore_settimanali = Number(oreSettimanali);
+      docente.mesi_servizio = Number(mesiServizio);
       docente.ore_a_dovute = Number(oreADovute);
       docente.ore_b_dovute = Number(oreBDovute);
     }
@@ -707,6 +743,7 @@ function DocentePanel({ docente, adminMode = false }: any) {
               <div className="flex gap-3 mt-1 font-bold text-[10px] uppercase">
                 <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded">{docente.contratto || 'INTERA'}</span>
                 <span className="text-slate-400 bg-slate-50 px-2 py-0.5 rounded">{docente.ore_settimanali || 18}H / SETT</span>
+                <span className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">{docente.mesi_servizio || 9} MESI</span>
               </div>
             </div>
           </div>
@@ -720,16 +757,28 @@ function DocentePanel({ docente, adminMode = false }: any) {
           )}
         </div>
 
-        {/* Modulo di Modifica Contratto (visibile solo se admin preme il tasto) */}
+        {/* Modulo di Modifica Contratto con Mesi e Ricalcolo Automatico */}
         {isEditingContract && adminMode && (
-          <form onSubmit={saveContratto} className="bg-slate-50 p-6 rounded-[2rem] border mb-8 grid grid-cols-1 md:grid-cols-4 gap-4 animate-in fade-in">
+          <form onSubmit={saveContratto} className="bg-slate-50 p-6 rounded-[2rem] border mb-8 grid grid-cols-1 md:grid-cols-5 gap-4 animate-in fade-in">
             <div>
               <label className="block text-[9px] font-black uppercase text-slate-400 mb-1">Tipo Contratto</label>
-              <input type="text" value={contratto} onChange={(e) => setContratto(e.target.value)} className="w-full bg-white border rounded-xl p-3 text-xs font-bold uppercase" required />
+              <select 
+                value={contratto} 
+                onChange={(e) => handleContrattoChange(e.target.value, undefined, undefined)}
+                className="w-full bg-white border rounded-xl p-3 text-xs font-bold uppercase"
+              >
+                <option value="INTERA">Cattedra Intera (18h)</option>
+                <option value="COMPLETAMENTO">Spezzone + Completamento</option>
+                <option value="SPEZZONE">Spezzone Solo Nostra Scuola</option>
+              </select>
             </div>
             <div>
               <label className="block text-[9px] font-black uppercase text-slate-400 mb-1">Ore Settimanali</label>
-              <input type="number" step="0.5" value={oreSettimanali} onChange={(e) => setOreSettimanali(e.target.value)} className="w-full bg-white border rounded-xl p-3 text-xs font-bold" required />
+              <input type="number" step="0.5" value={oreSettimanali} onChange={(e) => handleContrattoChange(undefined, Number(e.target.value), undefined)} className="w-full bg-white border rounded-xl p-3 text-xs font-bold" required />
+            </div>
+            <div>
+              <label className="block text-[9px] font-black uppercase text-slate-400 mb-1">Mesi Servizio</label>
+              <input type="number" step="0.5" max="9" min="0.5" value={mesiServizio} onChange={(e) => handleContrattoChange(undefined, undefined, Number(e.target.value))} className="w-full bg-white border rounded-xl p-3 text-xs font-bold" required />
             </div>
             <div>
               <label className="block text-[9px] font-black uppercase text-slate-400 mb-1">Ore Comma A Dovute</label>
@@ -739,7 +788,7 @@ function DocentePanel({ docente, adminMode = false }: any) {
               <label className="block text-[9px] font-black uppercase text-slate-400 mb-1">Ore Comma B Dovute</label>
               <input type="number" step="0.5" value={oreBDovute} onChange={(e) => setOreBDovute(e.target.value)} className="w-full bg-white border rounded-xl p-3 text-xs font-bold" required />
             </div>
-            <div className="md:col-span-4 flex justify-end">
+            <div className="md:col-span-5 flex justify-end">
               <button type="submit" className="bg-emerald-600 text-white px-8 py-3 rounded-xl text-[10px] font-black uppercase shadow-lg hover:bg-emerald-700 transition-all">Salva Contratto</button>
             </div>
           </form>
@@ -950,7 +999,6 @@ function ProgressBar({ label, attuale, target, color }: any) {
         <span className="text-xl font-black leading-none">
           {attuale} <span className="text-slate-300 text-sm font-bold">/ {target}H</span>
         </span>
-
       </div>
       <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
         <div 
