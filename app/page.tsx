@@ -504,9 +504,13 @@ function AdminPanel() {
         </div>
       )}
 
-    const calcolaOreDovute = (tipoContratto: string, ore: number, mesi: number) => {
+  import React, { useState, useEffect, useCallback } from 'react';
+
+// Funzione di utilità per il calcolo delle ore dovute
+const calcolaOreDovute = (tipoContratto: string, ore: number, mesi: number) => {
   let oreATot = 40;
   let oreBTot = 40;
+  
   if (tipoContratto === 'INTERA') {
     const base = 80 * (mesi / 9);
     oreATot = Math.floor(base / 2);
@@ -520,136 +524,154 @@ function AdminPanel() {
     const baseB = (40 / 18) * ore * (mesi / 9);
     oreBTot = Math.ceil(baseB);
   }
+  
   return { oreATot, oreBTot };
 };
 
-{tab === 'appello' && (
-  <div className="grid lg:grid-cols-2 gap-8 animate-in fade-in">
-    <div className="space-y-3">
-      <h3 className="text-[9px] font-black uppercase text-slate-400 ml-5 tracking-widest">Attività Recenti</h3>
-      {data.impegni.map((i: any) => (
-        <div 
-          key={i.id} 
-          onClick={() => setActiveImp(i.id)} 
-          className={`p-6 rounded-[2.5rem] border-4 cursor-pointer transition-all flex justify-between items-center ${activeImp === i.id ? 'bg-white border-blue-700 shadow-xl' : 'bg-white border-transparent shadow-sm'}`}
-        >
-          <div>
-            <span className={`text-[8px] font-black px-2 py-0.5 rounded-full mb-2 inline-block ${i.tipo === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'}`}>COMMA {i.tipo}</span>
-            <h4 className="font-black uppercase text-lg tracking-tighter">{i.titolo}</h4>
-            <p className="text-[9px] font-bold text-slate-300 uppercase italic">{i.data} • {i.ore}H</p>
+export default function AppelloDocumentiPanel({ 
+  tab, 
+  data, 
+  activeImp, 
+  setActiveImp, 
+  startEditImpegno, 
+  deleteImpegno, 
+  selDoc, 
+  setSelDoc, 
+  loadData, 
+  supabase 
+}: any) {
+  return (
+    <main className="min-h-screen p-8 bg-slate-100">
+      <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
+        <h1 className="text-3xl font-black uppercase italic tracking-tighter text-slate-900">Admin Control Panel</h1>
+      </div>
+
+      {tab === 'appello' && (
+        <div className="grid lg:grid-cols-2 gap-8 animate-in fade-in">
+          <div className="space-y-3">
+            <h3 className="text-[9px] font-black uppercase text-slate-400 ml-5 tracking-widest">Attività Recenti</h3>
+            {data.impegni.map((i: any) => (
+              <div 
+                key={i.id} 
+                onClick={() => setActiveImp(i.id)} 
+                className={`p-6 rounded-[2.5rem] border-4 cursor-pointer transition-all flex justify-between items-center ${activeImp === i.id ? 'bg-white border-blue-700 shadow-xl' : 'bg-white border-transparent shadow-sm'}`}
+              >
+                <div>
+                  <span className={`text-[8px] font-black px-2 py-0.5 rounded-full mb-2 inline-block ${i.tipo === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'}`}>COMMA {i.tipo}</span>
+                  <h4 className="font-black uppercase text-lg tracking-tighter">{i.titolo}</h4>
+                  <p className="text-[9px] font-bold text-slate-300 uppercase italic">{i.data} • {i.ore}H</p>
+                </div>
+
+                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                  <button onClick={() => startEditImpegno(i)} className="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all">✏️</button>
+                  <button onClick={() => deleteImpegno(i.id)} className="p-3 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all">🗑️</button>
+                </div>
+              </div>
+            ))}
           </div>
 
-          <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => startEditImpegno(i)} className="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all">✏️</button>
-            <button onClick={() => deleteImpegno(i.id)} className="p-3 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all">🗑️</button>
+          <div className="bg-white p-8 rounded-[3.5rem] shadow-2xl border sticky top-28 min-h-[450px]">
+            <h3 className="text-xl font-black mb-6 uppercase italic underline decoration-blue-100 underline-offset-4">Appello</h3>
+            <div className="space-y-3">
+              {data.piani.filter((p: any) => p.impegno_id === activeImp).map((p: any) => {
+                const d = data.docenti.find((x: any) => x.id === p.docente_id);
+                return (
+                  <div key={p.id} className="p-5 bg-slate-50 rounded-[1.8rem] flex justify-between items-center">
+                    <div>
+                      <p className="font-black uppercase text-[11px] text-slate-800">{d?.nome || 'Docente'}</p>
+                      <p className="text-[9px] font-bold text-blue-600 uppercase">{p.ore_effettive}H</p>
+                    </div>
+                    <div className="flex bg-white p-1 rounded-full gap-1 border">
+                      {['P', 'AG', 'ANG'].map((s) => (
+                        <button
+                          key={s}
+                          onClick={async () => { 
+                            await supabase.from('piani').update({ stato: p.stato === s ? null : s }).eq('id', p.id); 
+                            loadData(); 
+                          }}
+                          className={`w-8 h-8 rounded-full text-[8px] font-black transition-all ${p.stato === s ? 'bg-slate-900 text-white' : 'text-slate-300 hover:bg-slate-100'}`}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+              {!activeImp && <div className="text-center py-24 opacity-20 font-black uppercase text-[10px] tracking-[0.4em]">Scegli un impegno</div>}
+            </div>
           </div>
         </div>
-      ))}
-    </div>
+      )}
 
-    <div className="bg-white p-8 rounded-[3.5rem] shadow-2xl border sticky top-28 min-h-[450px]">
-      <h3 className="text-xl font-black mb-6 uppercase italic underline decoration-blue-100 underline-offset-4">Appello</h3>
-      <div className="space-y-3">
-        {data.piani.filter((p: any) => p.impegno_id === activeImp).map((p: any) => {
-          const d = data.docenti.find((x: any) => x.id === p.docente_id);
-          return (
-            <div key={p.id} className="p-5 bg-slate-50 rounded-[1.8rem] flex justify-between items-center">
-              <div>
-                <p className="font-black uppercase text-[11px] text-slate-800">{d?.nome || 'Docente'}</p>
-                <p className="text-[9px] font-bold text-blue-600 uppercase">{p.ore_effettive}H</p>
-              </div>
-              <div className="flex bg-white p-1 rounded-full gap-1 border">
-                {['P', 'AG', 'ANG'].map((s) => (
-                  <button
-                    key={s}
-                    onClick={async () => { 
-                      await supabase.from('piani').update({ stato: p.stato === s ? null : s }).eq('id', p.id); 
-                      loadData(); 
-                    }}
-                    className={`w-8 h-8 rounded-full text-[8px] font-black transition-all ${p.stato === s ? 'bg-slate-900 text-white' : 'text-slate-300 hover:bg-slate-100'}`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-        {!activeImp && <div className="text-center py-24 opacity-20 font-black uppercase text-[10px] tracking-[0.4em]">Scegli un impegno</div>}
-      </div>
-    </div>
-  </div>
-)}
-
-{tab === 'documenti' && (
-  <div className="bg-white p-10 rounded-[3.5rem] shadow-2xl border animate-in zoom-in">
-    <div className="grid lg:grid-cols-2 gap-12">
-      <div className="bg-slate-50 p-10 rounded-[2.5rem] border-4 border-dashed border-slate-200 text-center flex flex-col items-center justify-center">
-        <input 
-          type="file" 
-          className="text-[9px] font-black uppercase text-slate-400 cursor-pointer file:bg-slate-900 file:text-white file:rounded-full file:px-6 file:py-2.5 file:border-0" 
-          onChange={async (e) => {
-            const file = e.target.files?.[0];
-            if(!file) return;
-            const fileName = `${Date.now()}_${file.name}`;
-            const { error: upErr } = await supabase.storage.from('files').upload(fileName, file);
-            if(upErr) return alert("Errore upload");
-            const { data: { publicUrl } } = supabase.storage.from('files').getPublicUrl(fileName);
-            await supabase.from('documenti').insert([{ nome: file.name, url: publicUrl, storage_path: fileName }]);
-            loadData();
-            alert("File caricato!");
-          }} 
-        />
-      </div>
-      <div className="space-y-3">
-        <h3 className="text-[9px] font-black uppercase text-slate-300 mb-5 tracking-widest italic">Documenti Pubblicati</h3>
-        {data.docs.map((doc: any) => (
-          <div key={doc.id} className="p-5 bg-white border border-slate-100 rounded-[1.8rem] flex justify-between items-center shadow-sm">
-             <span className="font-black uppercase text-[10px] text-slate-700">{doc.nome}</span>
-             <button 
-              onClick={async () => {
-                if(confirm("Eliminare?")) {
-                  await supabase.storage.from('files').remove([doc.storage_path]);
-                  await supabase.from('documenti').delete().eq('id', doc.id);
+      {tab === 'documenti' && (
+        <div className="bg-white p-10 rounded-[3.5rem] shadow-2xl border animate-in zoom-in">
+          <div className="grid lg:grid-cols-2 gap-12">
+            <div className="bg-slate-50 p-10 rounded-[2.5rem] border-4 border-dashed border-slate-200 text-center flex flex-col items-center justify-center">
+              <input 
+                type="file" 
+                className="text-[9px] font-black uppercase text-slate-400 cursor-pointer file:bg-slate-900 file:text-white file:rounded-full file:px-6 file:py-2.5 file:border-0" 
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if(!file) return;
+                  const fileName = `${Date.now()}_${file.name}`;
+                  const { error: upErr } = await supabase.storage.from('files').upload(fileName, file);
+                  if(upErr) return alert("Errore upload");
+                  const { data: { publicUrl } } = supabase.storage.from('files').getPublicUrl(fileName);
+                  await supabase.from('documenti').insert([{ nome: file.name, url: publicUrl, storage_path: fileName }]);
                   loadData();
-                }
-              }}
-              className="text-red-500 font-black text-[9px] uppercase"
-             >Elimina</button>
+                  alert("File caricato!");
+                }} 
+              />
+            </div>
+            <div className="space-y-3">
+              <h3 className="text-[9px] font-black uppercase text-slate-300 mb-5 tracking-widest italic">Documenti Pubblicati</h3>
+              {data.docs.map((doc: any) => (
+                <div key={doc.id} className="p-5 bg-white border border-slate-100 rounded-[1.8rem] flex justify-between items-center shadow-sm">
+                   <span className="font-black uppercase text-[10px] text-slate-700">{doc.nome}</span>
+                   <button 
+                    onClick={async () => {
+                      if(confirm("Eliminare?")) {
+                        await supabase.storage.from('files').remove([doc.storage_path]);
+                        await supabase.from('documenti').delete().eq('id', doc.id);
+                        loadData();
+                      }
+                    }}
+                    className="text-red-500 font-black text-[9px] uppercase"
+                   >Elimina</button>
+                </div>
+              ))}
+            </div>
           </div>
-        ))}
-      </div>
-    </div>
-  </div>
-)}
+        </div>
+      )}
 
-{selDoc && (
-  <div className="mt-12 border-t-[8px] border-slate-900 pt-12">
-    <div className="flex justify-between items-center mb-6">
-       <h2 className="text-xl font-black uppercase tracking-widest">Dettaglio: {selDoc.nome}</h2>
-       <button onClick={() => setSelDoc(null)} className="text-slate-400 font-bold uppercase text-xs">Chiudi X</button>
-    </div>
-    <DocentePanel docente={selDoc} adminMode={true} />
-  </div>
-)}
-
-</main>
+      {selDoc && (
+        <div className="mt-12 border-t-[8px] border-slate-900 pt-12">
+          <div className="flex justify-between items-center mb-6">
+             <h2 className="text-xl font-black uppercase tracking-widest">Dettaglio: {selDoc.nome}</h2>
+             <button onClick={() => setSelDoc(null)} className="text-slate-400 font-bold uppercase text-xs">Chiudi X</button>
+          </div>
+          <DocentePanel docente={selDoc} adminMode={true} supabase={supabase} />
+        </div>
+      )}
+    </main>
   );
 }
 
-function DocentePanel({ docente, adminMode = false }: any) {
+export function DocentePanel({ docente, adminMode = false, supabase }: any) {
   const [impegni, setImpegni] = useState<any[]>([]);
   const [piani, setPiani] = useState<any[]>([]);
   const [documenti, setDocumenti] = useState<any[]>([]);
   const [tab, setTab] = useState('calendario');
 
-  // Stati per la modifica del contratto (inclusi mesi e ricalcolo automatico)
   const [isEditingContract, setIsEditingContract] = useState(false);
   const [contratto, setContratto] = useState(docente.contratto || 'INTERA');
   const [oreSettimanali, setOreSettimanali] = useState(docente.ore_settimanali || 18);
   const [mesiServizio, setMesiServizio] = useState(docente.mesi_servizio || 9);
   const [oreADovute, setOreADovute] = useState(docente.ore_a_dovute || 40);
   const [oreBDovute, setOreBDovute] = useState(docente.ore_b_dovute || 40);
+  const [orePrenotazioneTemp, setOrePrenotazioneTemp] = useState<{ [key: string]: number }>({});
 
   const handleContrattoChange = (nuovoContratto?: string, nuoveOre?: number, nuoviMesi?: number) => {
     const c = nuovoContratto !== undefined ? nuovoContratto : contratto;
@@ -674,7 +696,7 @@ function DocentePanel({ docente, adminMode = false }: any) {
     setImpegni(i.data || []); 
     setPiani(p.data || []);
     setDocumenti(d.data || []);
-  }, [docente.id]);
+  }, [docente.id, supabase]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -731,7 +753,6 @@ function DocentePanel({ docente, adminMode = false }: any) {
 
   return (
     <div className="max-w-6xl mx-auto px-4 pb-20">
-      
       <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-slate-100 mb-10">
         <div className="flex flex-wrap items-center justify-between gap-6 mb-8">
           <div className="flex items-center gap-6">
@@ -757,7 +778,6 @@ function DocentePanel({ docente, adminMode = false }: any) {
           )}
         </div>
 
-        {/* Modulo di Modifica Contratto con Mesi e Ricalcolo Automatico */}
         {isEditingContract && adminMode && (
           <form onSubmit={saveContratto} className="bg-slate-50 p-6 rounded-[2rem] border mb-8 grid grid-cols-1 md:grid-cols-5 gap-4 animate-in fade-in">
             <div>
@@ -836,8 +856,12 @@ function DocentePanel({ docente, adminMode = false }: any) {
                    <div className="flex flex-col items-center">
                      <span className="text-[9px] font-black text-slate-300 uppercase mb-1">H. Eff</span>
                      <input 
-                      id={`ore-${i.id}`} type="number" step="0.5" defaultValue={p ? p.ore_effettive : i.ore}
-                      disabled={!!p} className="w-16 bg-slate-50 border-2 border-slate-100 rounded-xl p-2 text-center font-black"
+                      type="number" 
+                      step="0.5" 
+                      value={orePrenotazioneTemp[i.id] !== undefined ? orePrenotazioneTemp[i.id] : (p ? p.ore_effettive : i.ore)}
+                      onChange={(e) => setOrePrenotazioneTemp({ ...orePrenotazioneTemp, [i.id]: Number(e.target.value) })}
+                      disabled={!!p} 
+                      className="w-16 bg-slate-50 border-2 border-slate-100 rounded-xl p-2 text-center font-black"
                      />
                    </div>
                    <button 
@@ -845,7 +869,7 @@ function DocentePanel({ docente, adminMode = false }: any) {
                       if(p) { 
                         await supabase.from('piani').delete().eq('id', p.id); 
                       } else {
-                        const h = (document.getElementById(`ore-${i.id}`) as HTMLInputElement).value;
+                        const h = orePrenotazioneTemp[i.id] !== undefined ? orePrenotazioneTemp[i.id] : i.ore;
                         await supabase.from('piani').insert([{ 
                           docente_id: docente.id, 
                           impegno_id: i.id, 
@@ -981,7 +1005,6 @@ function DocentePanel({ docente, adminMode = false }: any) {
            </div>
         </div>
       )}
-
     </div>
   );
 }
