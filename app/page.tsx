@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import * as XLSX from 'xlsx';
-import DocentePanel from './DocentePanel'; // Assicurati che il percorso del componente sia corretto
 
+// Configura Supabase con le tue credenziali
 const SUPABASE_URL = "https://tvjcpczzlqtwtefvnrhk.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR2amNwY3p6bHF0d3RlZnZucmhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1NzAzMTcsImV4cCI6MjA4NjE0NjMxN30.w2VzO83AGEUERjs6_d0NnSghQU1SeZNguNZe171ZPK4";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR2amNwY3p6bHF0d3RlZnZucmhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1NzAzMTcsImV4cCI6MjA4NjE0NjMxN30.w2VzO83AGEUERjs6_d0NnSghQU1SeZNguNZe171ZPK4"; // Inserisci la tua anon key completa
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const ADMIN_PASSWORD = "admin";
@@ -115,25 +115,22 @@ export default function App() {
       </div>
 
       {currentUser === 'ADMIN' ? (
-        <AdminPanel supabase={supabase} />
+        <AdminPanel />
       ) : (
         <main className="max-w-[1400px] mx-auto p-6 lg:p-10">
-          <DocentePanel docente={currentUser} adminMode={false} supabase={supabase} />
+          <DocentePanel docente={currentUser} adminMode={false} />
         </main>
       )}
     </div>
   );
 }
 
-interface AdminPanelProps {
-  supabase: SupabaseClient;
-}
-
-function AdminPanel({ supabase }: AdminPanelProps) {
+function AdminPanel() {
   const [tab, setTab] = useState('docenti');
   const [data, setData] = useState({ docenti: [], impegni: [], piani: [], docs: [] });
   const [selDoc, setSelDoc] = useState<any>(null);
   const [activeImp, setActiveImp] = useState<string | null>(null);
+  
   const [editingImpId, setEditingImpId] = useState<string | null>(null);
 
   const [formDoc, setFormDoc] = useState({ nome: '', contratto: 'INTERA', ore: 18, mesi: 9 });
@@ -153,7 +150,7 @@ function AdminPanel({ supabase }: AdminPanelProps) {
     if (impegniCaricati.length > 0 && !activeImp) {
       setActiveImp(impegniCaricati[0].id);
     }
-  }, [activeImp, supabase]);
+  }, [activeImp]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -218,6 +215,28 @@ function AdminPanel({ supabase }: AdminPanelProps) {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Registro");
     XLSX.writeFile(workbook, `Report_Scuola_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  const deleteImpegno = async (id: string) => {
+    if(!confirm("⚠️ Eliminando l'impegno cancellerai le ore di tutti i docenti per questa attività. Procedere?")) return;
+    const { error } = await supabase.from('impegni').delete().eq('id', id);
+    if(!error) { 
+      if (activeImp === id) setActiveImp(null); 
+      loadData(); 
+    } else {
+      alert("Errore durante l'eliminazione: " + error.message);
+    }
+  };
+
+  const startEditImpegno = (imp: any) => {
+    setEditingImpId(imp.id);
+    setFormImp({
+      titolo: imp.titolo,
+      data: imp.data,
+      ore: imp.ore || 2,
+      tipo: imp.tipo || 'A'
+    });
+    setTab('impegni');
   };
 
   const cancelEdit = () => {
@@ -298,6 +317,7 @@ function AdminPanel({ supabase }: AdminPanelProps) {
 
   return (
     <main className="max-w-[1400px] mx-auto p-6 lg:p-10">
+      
       <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
         <h1 className="text-3xl font-black uppercase italic tracking-tighter text-slate-900">Admin Control Panel</h1>
         <button 
@@ -422,21 +442,6 @@ function AdminPanel({ supabase }: AdminPanelProps) {
         </div>
       )}
 
-      {tab === 'docenti' && selDoc && (
-        <div className="mt-6 border-t-[8px] border-slate-900 pt-8">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-black uppercase tracking-widest text-slate-900">Dettaglio Docente: {selDoc.nome}</h2>
-            <button 
-              onClick={() => setSelDoc(null)} 
-              className="bg-slate-200 hover:bg-slate-300 text-slate-800 px-4 py-2 font-bold uppercase text-xs rounded-xl transition"
-            >
-              Chiudi X
-            </button>
-          </div>
-          <DocentePanel docente={selDoc} adminMode={true} supabase={supabase} />
-        </div>
-      )}
-
       {tab === 'nuovo_doc' && (
         <div className="max-w-3xl mx-auto bg-white p-10 md:p-12 rounded-[3.5rem] shadow-2xl border animate-in zoom-in">
           <h2 className="text-3xl font-black mb-8 uppercase italic text-blue-800 tracking-tighter">Registrazione Staff</h2>
@@ -498,76 +503,12 @@ function AdminPanel({ supabase }: AdminPanelProps) {
           </div>
         </div>
       )}
-    </main>
-  );
-}
 
-"use client";
-
-import React, { useState, useEffect, useCallback } from 'react';
-
-// Funzione di utilità per il calcolo delle ore dovute
-const calcolaOreDovute = (tipoContratto: string, ore: number, mesi: number) => {
-  let oreATot = 40;
-  let oreBTot = 40;
-  
-  if (tipoContratto === 'INTERA') {
-    const base = 80 * (mesi / 9);
-    oreATot = Math.floor(base / 2);
-    oreBTot = Math.ceil(base / 2);
-  } else if (tipoContratto === 'COMPLETAMENTO') {
-    const base = (80 / 18) * ore * (mesi / 9);
-    oreATot = Math.floor(base / 2);
-    oreBTot = Math.ceil(base / 2);
-  } else if (tipoContratto === 'SPEZZONE') {
-    oreATot = Math.floor(40 * (mesi / 9));
-    const baseB = (40 / 18) * ore * (mesi / 9);
-    oreBTot = Math.ceil(baseB);
-  }
-  
-  return { oreATot, oreBTot };
-};
-
-export default function AppelloDocumentiPanel({ 
-  tab,
-  setTab,
-  data, 
-  activeImp, 
-  setActiveImp, 
-  startEditImpegno, 
-  deleteImpegno, 
-  selDocente, 
-  setSelDocente, 
-  loadData, 
-  supabase 
-}: any) {
-  return (
-    <main className="min-h-screen p-8 bg-slate-100">
-      <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
-        <h1 className="text-3xl font-black uppercase italic tracking-tighter text-slate-900">Admin Control Panel</h1>
-        
-        {/* Navigazione principale Admin */}
-        <div className="flex gap-2">
-          {['appello', 'docenti', 'documenti'].map((t) => (
-            <button
-              key={t}
-              onClick={() => { setTab(t); setSelDocente(null); }}
-              className={`px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${
-                tab === t && !selDocente ? 'bg-slate-900 text-white shadow-lg' : 'bg-white text-slate-400 hover:text-slate-900'
-              }`}
-            >
-              {t === 'appello' ? 'Appello' : t === 'docenti' ? 'Docenti' : 'Documenti'}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* SEZIONE APPELLO */}
-      {tab === 'appello' && !selDocente && (
+      {tab === 'appello' && (
         <div className="grid lg:grid-cols-2 gap-8 animate-in fade-in">
           <div className="space-y-3">
             <h3 className="text-[9px] font-black uppercase text-slate-400 ml-5 tracking-widest">Attività Recenti</h3>
-            {data.impegni?.map((i: any) => (
+            {data.impegni.map((i: any) => (
               <div 
                 key={i.id} 
                 onClick={() => setActiveImp(i.id)} 
@@ -590,8 +531,8 @@ export default function AppelloDocumentiPanel({
           <div className="bg-white p-8 rounded-[3.5rem] shadow-2xl border sticky top-28 min-h-[450px]">
             <h3 className="text-xl font-black mb-6 uppercase italic underline decoration-blue-100 underline-offset-4">Appello</h3>
             <div className="space-y-3">
-              {data.piani?.filter((p: any) => p.impegno_id === activeImp).map((p: any) => {
-                const d = data.docenti?.find((x: any) => x.id === p.docente_id);
+              {data.piani.filter((p: any) => p.impegno_id === activeImp).map((p: any) => {
+                const d = data.docenti.find((x: any) => x.id === p.docente_id);
                 return (
                   <div key={p.id} className="p-5 bg-slate-50 rounded-[1.8rem] flex justify-between items-center">
                     <div>
@@ -621,30 +562,7 @@ export default function AppelloDocumentiPanel({
         </div>
       )}
 
-      {/* SEZIONE DOCENTI (ADMIN) */}
-      {tab === 'docenti' && !selDocente && (
-        <div className="bg-white p-10 rounded-[3.5rem] shadow-2xl border animate-in fade-in">
-          <h3 className="text-xl font-black mb-6 uppercase italic underline decoration-blue-100 underline-offset-4">Elenco Docenti</h3>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {data.docenti?.map((doc: any) => (
-              <div 
-                key={doc.id} 
-                onClick={() => setSelDocente(doc)}
-                className="p-6 bg-slate-50 rounded-[2rem] border cursor-pointer hover:border-blue-600 hover:shadow-lg transition-all flex items-center justify-between"
-              >
-                <div>
-                  <h4 className="font-black uppercase text-base text-slate-800">{doc.nome}</h4>
-                  <p className="text-[10px] font-bold text-blue-600 uppercase mt-1">{doc.contratto || 'INTERA'} • {doc.ore_settimanali || 18}H</p>
-                </div>
-                <span className="text-slate-400 font-bold">→</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* SEZIONE DOCUMENTI */}
-      {tab === 'documenti' && !selDocente && (
+      {tab === 'documenti' && (
         <div className="bg-white p-10 rounded-[3.5rem] shadow-2xl border animate-in zoom-in">
           <div className="grid lg:grid-cols-2 gap-12">
             <div className="bg-slate-50 p-10 rounded-[2.5rem] border-4 border-dashed border-slate-200 text-center flex flex-col items-center justify-center">
@@ -666,7 +584,7 @@ export default function AppelloDocumentiPanel({
             </div>
             <div className="space-y-3">
               <h3 className="text-[9px] font-black uppercase text-slate-300 mb-5 tracking-widest italic">Documenti Pubblicati</h3>
-              {data.docs?.map((doc: any) => (
+              {data.docs.map((doc: any) => (
                 <div key={doc.id} className="p-5 bg-white border border-slate-100 rounded-[1.8rem] flex justify-between items-center shadow-sm">
                    <span className="font-black uppercase text-[10px] text-slate-700">{doc.nome}</span>
                    <button 
@@ -686,47 +604,32 @@ export default function AppelloDocumentiPanel({
         </div>
       )}
 
-      {/* DETTAGLIO DOCENTE SELEZIONATO NELL'ADMIN */}
-      {selDocente && (
-        <div className="mt-12 border-t-[8px] border-slate-900 pt-12 animate-in fade-in">
-          <div className="flex justify-between items-center mb-6 max-w-6xl mx-auto px-4">
-             <h2 className="text-xl font-black uppercase tracking-widest">Dettaglio Docente: {selDocente.nome}</h2>
-             <button onClick={() => setSelDocente(null)} className="bg-slate-900 text-white px-6 py-2 rounded-xl text-[10px] font-black uppercase">← Torna Indietro</button>
+      {selDoc && (
+        <div className="mt-12 border-t-[8px] border-slate-900 pt-12">
+          <div className="flex justify-between items-center mb-6">
+             <h2 className="text-xl font-black uppercase tracking-widest">Dettaglio: {selDoc.nome}</h2>
+             <button onClick={() => setSelDoc(null)} className="text-slate-400 font-bold uppercase text-xs">Chiudi X</button>
           </div>
-          <DocentePanel docente={selDocente} adminMode={true} supabase={supabase} />
+          <DocentePanel docente={selDoc} adminMode={true} />
         </div>
       )}
+
     </main>
   );
 }
 
-export function DocentePanel({ docente, adminMode = false, supabase }: any) {
+function DocentePanel({ docente, adminMode = false }: any) {
   const [impegni, setImpegni] = useState<any[]>([]);
   const [piani, setPiani] = useState<any[]>([]);
   const [documenti, setDocumenti] = useState<any[]>([]);
   const [tab, setTab] = useState('calendario');
 
+  // Stati per la modifica del contratto (attivi se adminMode è true)
   const [isEditingContract, setIsEditingContract] = useState(false);
   const [contratto, setContratto] = useState(docente.contratto || 'INTERA');
   const [oreSettimanali, setOreSettimanali] = useState(docente.ore_settimanali || 18);
-  const [mesiServizio, setMesiServizio] = useState(docente.mesi_servizio || 9);
   const [oreADovute, setOreADovute] = useState(docente.ore_a_dovute || 40);
   const [oreBDovute, setOreBDovute] = useState(docente.ore_b_dovute || 40);
-  const [orePrenotazioneTemp, setOrePrenotazioneTemp] = useState<{ [key: string]: number }>({});
-
-  const handleContrattoChange = (nuovoContratto?: string, nuoveOre?: number, nuoviMesi?: number) => {
-    const c = nuovoContratto !== undefined ? nuovoContratto : contratto;
-    const o = nuoveOre !== undefined ? nuoveOre : oreSettimanali;
-    const m = nuoviMesi !== undefined ? nuoviMesi : mesiServizio;
-
-    if (nuovoContratto !== undefined) setContratto(c);
-    if (nuoveOre !== undefined) setOreSettimanali(o);
-    if (nuoviMesi !== undefined) setMesiServizio(m);
-
-    const { oreATot, oreBTot } = calcolaOreDovute(c, Number(o), Number(m));
-    setOreADovute(oreATot);
-    setOreBDovute(oreBTot);
-  };
 
   const load = useCallback(async () => {
     const [i, p, d] = await Promise.all([
@@ -737,7 +640,7 @@ export function DocentePanel({ docente, adminMode = false, supabase }: any) {
     setImpegni(i.data || []); 
     setPiani(p.data || []);
     setDocumenti(d.data || []);
-  }, [docente.id, supabase]);
+  }, [docente.id]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -761,7 +664,6 @@ export function DocentePanel({ docente, adminMode = false, supabase }: any) {
       .update({
         contratto,
         ore_settimanali: Number(oreSettimanali),
-        mesi_servizio: Number(mesiServizio),
         ore_a_dovute: Number(oreADovute),
         ore_b_dovute: Number(oreBDovute)
       })
@@ -774,7 +676,6 @@ export function DocentePanel({ docente, adminMode = false, supabase }: any) {
       setIsEditingContract(false);
       docente.contratto = contratto;
       docente.ore_settimanali = Number(oreSettimanali);
-      docente.mesi_servizio = Number(mesiServizio);
       docente.ore_a_dovute = Number(oreADovute);
       docente.ore_b_dovute = Number(oreBDovute);
     }
@@ -794,6 +695,7 @@ export function DocentePanel({ docente, adminMode = false, supabase }: any) {
 
   return (
     <div className="max-w-6xl mx-auto px-4 pb-20">
+      
       <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-slate-100 mb-10">
         <div className="flex flex-wrap items-center justify-between gap-6 mb-8">
           <div className="flex items-center gap-6">
@@ -805,7 +707,6 @@ export function DocentePanel({ docente, adminMode = false, supabase }: any) {
               <div className="flex gap-3 mt-1 font-bold text-[10px] uppercase">
                 <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded">{docente.contratto || 'INTERA'}</span>
                 <span className="text-slate-400 bg-slate-50 px-2 py-0.5 rounded">{docente.ore_settimanali || 18}H / SETT</span>
-                <span className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">{docente.mesi_servizio || 9} MESI</span>
               </div>
             </div>
           </div>
@@ -819,27 +720,16 @@ export function DocentePanel({ docente, adminMode = false, supabase }: any) {
           )}
         </div>
 
+        {/* Modulo di Modifica Contratto (visibile solo se admin preme il tasto) */}
         {isEditingContract && adminMode && (
-          <form onSubmit={saveContratto} className="bg-slate-50 p-6 rounded-[2rem] border mb-8 grid grid-cols-1 md:grid-cols-5 gap-4 animate-in fade-in">
+          <form onSubmit={saveContratto} className="bg-slate-50 p-6 rounded-[2rem] border mb-8 grid grid-cols-1 md:grid-cols-4 gap-4 animate-in fade-in">
             <div>
               <label className="block text-[9px] font-black uppercase text-slate-400 mb-1">Tipo Contratto</label>
-              <select 
-                value={contratto} 
-                onChange={(e) => handleContrattoChange(e.target.value, undefined, undefined)}
-                className="w-full bg-white border rounded-xl p-3 text-xs font-bold uppercase"
-              >
-                <option value="INTERA">Cattedra Intera (18h)</option>
-                <option value="COMPLETAMENTO">Spezzone + Completamento</option>
-                <option value="SPEZZONE">Spezzone Solo Nostra Scuola</option>
-              </select>
+              <input type="text" value={contratto} onChange={(e) => setContratto(e.target.value)} className="w-full bg-white border rounded-xl p-3 text-xs font-bold uppercase" required />
             </div>
             <div>
               <label className="block text-[9px] font-black uppercase text-slate-400 mb-1">Ore Settimanali</label>
-              <input type="number" step="0.5" value={oreSettimanali} onChange={(e) => handleContrattoChange(undefined, Number(e.target.value), undefined)} className="w-full bg-white border rounded-xl p-3 text-xs font-bold" required />
-            </div>
-            <div>
-              <label className="block text-[9px] font-black uppercase text-slate-400 mb-1">Mesi Servizio</label>
-              <input type="number" step="0.5" max="9" min="0.5" value={mesiServizio} onChange={(e) => handleContrattoChange(undefined, undefined, Number(e.target.value))} className="w-full bg-white border rounded-xl p-3 text-xs font-bold" required />
+              <input type="number" step="0.5" value={oreSettimanali} onChange={(e) => setOreSettimanali(e.target.value)} className="w-full bg-white border rounded-xl p-3 text-xs font-bold" required />
             </div>
             <div>
               <label className="block text-[9px] font-black uppercase text-slate-400 mb-1">Ore Comma A Dovute</label>
@@ -849,7 +739,7 @@ export function DocentePanel({ docente, adminMode = false, supabase }: any) {
               <label className="block text-[9px] font-black uppercase text-slate-400 mb-1">Ore Comma B Dovute</label>
               <input type="number" step="0.5" value={oreBDovute} onChange={(e) => setOreBDovute(e.target.value)} className="w-full bg-white border rounded-xl p-3 text-xs font-bold" required />
             </div>
-            <div className="md:col-span-5 flex justify-end">
+            <div className="md:col-span-4 flex justify-end">
               <button type="submit" className="bg-emerald-600 text-white px-8 py-3 rounded-xl text-[10px] font-black uppercase shadow-lg hover:bg-emerald-700 transition-all">Salva Contratto</button>
             </div>
           </form>
@@ -897,12 +787,8 @@ export function DocentePanel({ docente, adminMode = false, supabase }: any) {
                    <div className="flex flex-col items-center">
                      <span className="text-[9px] font-black text-slate-300 uppercase mb-1">H. Eff</span>
                      <input 
-                      type="number" 
-                      step="0.5" 
-                      value={orePrenotazioneTemp[i.id] !== undefined ? orePrenotazioneTemp[i.id] : (p ? p.ore_effettive : i.ore)}
-                      onChange={(e) => setOrePrenotazioneTemp({ ...orePrenotazioneTemp, [i.id]: Number(e.target.value) })}
-                      disabled={!!p} 
-                      className="w-16 bg-slate-50 border-2 border-slate-100 rounded-xl p-2 text-center font-black"
+                      id={`ore-${i.id}`} type="number" step="0.5" defaultValue={p ? p.ore_effettive : i.ore}
+                      disabled={!!p} className="w-16 bg-slate-50 border-2 border-slate-100 rounded-xl p-2 text-center font-black"
                      />
                    </div>
                    <button 
@@ -910,7 +796,7 @@ export function DocentePanel({ docente, adminMode = false, supabase }: any) {
                       if(p) { 
                         await supabase.from('piani').delete().eq('id', p.id); 
                       } else {
-                        const h = orePrenotazioneTemp[i.id] !== undefined ? orePrenotazioneTemp[i.id] : i.ore;
+                        const h = (document.getElementById(`ore-${i.id}`) as HTMLInputElement).value;
                         await supabase.from('piani').insert([{ 
                           docente_id: docente.id, 
                           impegno_id: i.id, 
@@ -1046,6 +932,7 @@ export function DocentePanel({ docente, adminMode = false, supabase }: any) {
            </div>
         </div>
       )}
+
     </div>
   );
 }
@@ -1063,6 +950,7 @@ function ProgressBar({ label, attuale, target, color }: any) {
         <span className="text-xl font-black leading-none">
           {attuale} <span className="text-slate-300 text-sm font-bold">/ {target}H</span>
         </span>
+
       </div>
       <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
         <div 
