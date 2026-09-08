@@ -504,7 +504,9 @@ function AdminPanel() {
         </div>
       )}
 
-  import React, { useState, useEffect, useCallback } from 'react';
+"use client";
+
+import React, { useState, useEffect, useCallback } from 'react';
 
 // Funzione di utilità per il calcolo delle ore dovute
 const calcolaOreDovute = (tipoContratto: string, ore: number, mesi: number) => {
