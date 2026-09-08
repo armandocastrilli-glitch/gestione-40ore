@@ -1,20 +1,144 @@
 'use client';
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import * as XLSX from 'xlsx';
 
 // Configura Supabase con le tue credenziali
 const SUPABASE_URL = "https://tvjcpczzlqtwtefvnrhk.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR2amNwY3p6bHF0d3RlZnZucmhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1NzAzMTcsImV4cCI6MjA4NjE0NjMxN30.w2VzO83AGEUERjs6_d0NnSghQU1SeZNguNZe171ZPK4";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOi..."; // Inserisci la tua chiave completa qui
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-export default function AdminPanel() {
+// PASSWORD ADMIN
+const ADMIN_PASSWORD = "admin"; // Personalizza la password per l'Admin se desideri
+
+export default function App() {
+  const [currentUser, setCurrentUser] = useState<any>(null); // null, 'ADMIN', oppure oggetto docente
+  const [inputPass, setInputPass] = useState('');
+  const [inputCode, setInputCode] = useState('');
+  const [authError, setAuthError] = useState('');
+
+  // LOGIN ADMIN
+  const handleAdminLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (inputPass === ADMIN_PASSWORD) {
+      setCurrentUser('ADMIN');
+      setAuthError('');
+    } else {
+      setAuthError('Password Admin non corretta.');
+    }
+  };
+
+  // LOGIN DOCENTE TRAMITE CODICE
+  const handleDocenteLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+    if (!inputCode.trim()) return;
+
+    const { data, error } = await supabase
+      .from('docenti')
+      .select('*')
+      .eq('codice_accesso', inputCode.trim().toUpperCase())
+      .single();
+
+    if (error || !data) {
+      setAuthError('Codice non valido. Verifica e riprova.');
+    } else {
+      setCurrentUser(data);
+    }
+  };
+
+  const logout = () => {
+    setCurrentUser(null);
+    setInputPass('');
+    setInputCode('');
+    setAuthError('');
+  };
+
+  // SCHERMATA DI ACCESS0
+  if (!currentUser) {
+    return (
+      <main className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white p-10 rounded-[3rem] shadow-2xl border space-y-8">
+          <div className="text-center">
+            <h1 className="text-3xl font-black uppercase italic text-slate-900 tracking-tighter">Gestione 40 Ore</h1>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Accesso al Sistema</p>
+          </div>
+
+          {authError && (
+            <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-2xl text-xs font-bold text-center">
+              {authError}
+            </div>
+          )}
+
+          {/* FORM ACCESSO DOCENTE */}
+          <form onSubmit={handleDocenteLogin} className="space-y-4">
+            <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest block ml-2">Accesso Docente</label>
+            <input 
+              type="text" 
+              placeholder="INSERISCI CODICE" 
+              className="w-full p-5 bg-slate-50 rounded-2xl font-black uppercase text-center border-2 border-transparent focus:border-blue-600 outline-none"
+              value={inputCode}
+              onChange={e => setInputCode(e.target.value)}
+            />
+            <button type="submit" className="w-full bg-blue-700 hover:bg-blue-800 text-white p-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg transition-all">
+              Entra come Docente
+            </button>
+          </form>
+
+          <div className="relative flex py-2 items-center">
+            <div className="flex-grow border-t border-slate-200"></div>
+            <span className="flex-shrink mx-4 text-[9px] font-black uppercase text-slate-300">oppure</span>
+            <div className="flex-grow border-t border-slate-200"></div>
+          </div>
+
+          {/* FORM ACCESSO ADMIN */}
+          <form onSubmit={handleAdminLogin} className="space-y-4">
+            <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest block ml-2">Accesso Amministratore</label>
+            <input 
+              type="password" 
+              placeholder="PASSWORD ADMIN" 
+              className="w-full p-5 bg-slate-50 rounded-2xl font-bold text-center border-2 border-transparent focus:border-slate-800 outline-none"
+              value={inputPass}
+              onChange={e => setInputPass(e.target.value)}
+            />
+            <button type="submit" className="w-full bg-slate-900 hover:bg-slate-800 text-white p-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg transition-all">
+              Login Admin
+            </button>
+          </form>
+        </div>
+      </main>
+    );
+  }
+
+  // ACCESSO EFFETTUATO: VISTA ADMIN O DOCENTE
+  return (
+    <div>
+      {/* BARRA DI DISCONNESSIONE IN ALTO */}
+      <div className="bg-slate-900 text-white px-8 py-3 flex justify-between items-center text-xs font-bold">
+        <span>Utente: <strong className="uppercase">{currentUser === 'ADMIN' ? 'Amministratore' : currentUser.nome}</strong></span>
+        <button onClick={logout} className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest">
+          Esci
+        </button>
+      </div>
+
+      {currentUser === 'ADMIN' ? (
+        <AdminPanel />
+      ) : (
+        <main className="max-w-[1400px] mx-auto p-6 lg:p-10">
+          <DocentePanel docente={currentUser} adminMode={false} />
+        </main>
+      )}
+    </div>
+  );
+}
+
+function AdminPanel() {
   const [tab, setTab] = useState('docenti');
   const [data, setData] = useState({ docenti: [], impegni: [], piani: [], docs: [] });
   const [selDoc, setSelDoc] = useState<any>(null);
   const [activeImp, setActiveImp] = useState<string | null>(null);
   
-  // Stato per gestire la modifica di un impegno esistente
   const [editingImpId, setEditingImpId] = useState<string | null>(null);
 
   const [formDoc, setFormDoc] = useState({ nome: '', contratto: 'INTERA', ore: 18, mesi: 9 });
@@ -89,7 +213,6 @@ export default function AdminPanel() {
     XLSX.writeFile(workbook, `Report_Scuola_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
-  // --- FUNZIONE ELIMINA IMPEGNO ---
   const deleteImpegno = async (id: string) => {
     if(!confirm("⚠️ Eliminando l'impegno cancellerai le ore di tutti i docenti per questa attività. Procedere?")) return;
     const { error } = await supabase.from('impegni').delete().eq('id', id);
@@ -101,7 +224,6 @@ export default function AdminPanel() {
     }
   };
 
-  // --- PREPARA FORM PER MODIFICA ---
   const startEditImpegno = (imp: any) => {
     setEditingImpId(imp.id);
     setFormImp({
@@ -157,7 +279,6 @@ export default function AdminPanel() {
     } else { alert("Errore: " + error.message); }
   };
 
-  // --- CREA O AGGIORNA IMPEGNO ---
   const saveImpegno = async () => {
     if (!formImp.titolo || !formImp.data) {
       return alert("⚠️ Inserisci Titolo e Data!");
@@ -747,7 +868,6 @@ function DocentePanel({ docente, adminMode = false }: any) {
   );
 }
 
-// --- COMPONENTE BARRA DI AVANZAMENTO ---
 function ProgressBar({ label, attuale, target, color }: any) {
   const percent = Math.min((attuale / target) * 100, 100);
   const colorClass = color === 'blue' ? 'bg-blue-600' : 'bg-indigo-600';
@@ -773,22 +893,6 @@ function ProgressBar({ label, attuale, target, color }: any) {
           ✨ Ore eccedenti: +{attuale - target}H
         </p>
       )}
-    </div>
-  );
-}
-
-// --- COMPONENTE MINI STATS ADMIN ---
-function AdminStatMini({ label, val, max, col, pian = 0 }: any) {
-  const c = col === 'blue' ? 'text-blue-700' : 'text-indigo-700';
-  const bg = col === 'blue' ? 'bg-blue-50' : 'bg-indigo-50';
-  return (
-    <div className={`${bg} px-8 py-5 rounded-[2rem] border-4 border-white text-center shadow-lg min-w-[160px]`}>
-      <p className="text-[8px] font-black text-slate-400 uppercase mb-2 tracking-widest">{label}</p>
-      <div className="flex justify-center items-end gap-1">
-        <p className={`text-3xl font-black italic tracking-tighter ${c}`}>{val}</p>
-        <p className="text-[11px] font-bold text-slate-300 mb-1">/ {max}H</p>
-      </div>
-      {pian > val && <p className="text-[7px] font-black text-orange-600 uppercase mt-1 italic leading-none">Pian: {pian}h</p>}
     </div>
   );
 }
