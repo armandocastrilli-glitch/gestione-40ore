@@ -6,19 +6,17 @@ import * as XLSX from 'xlsx';
 
 // Configura Supabase con le tue credenziali
 const SUPABASE_URL = "https://tvjcpczzlqtwtefvnrhk.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOi..."; // Inserisci la tua chiave completa qui
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOi..."; // Inserisci la tua anon key completa
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// PASSWORD ADMIN
-const ADMIN_PASSWORD = "admin"; // Personalizza la password per l'Admin se desideri
+const ADMIN_PASSWORD = "admin";
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState<any>(null); // null, 'ADMIN', oppure oggetto docente
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [inputPass, setInputPass] = useState('');
   const [inputCode, setInputCode] = useState('');
   const [authError, setAuthError] = useState('');
 
-  // LOGIN ADMIN
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (inputPass === ADMIN_PASSWORD) {
@@ -29,7 +27,6 @@ export default function App() {
     }
   };
 
-  // LOGIN DOCENTE TRAMITE CODICE
   const handleDocenteLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
@@ -38,8 +35,8 @@ export default function App() {
     const { data, error } = await supabase
       .from('docenti')
       .select('*')
-      .eq('codice_accesso', inputCode.trim().toUpperCase())
-      .single();
+      .ilike('codice_accesso', inputCode.trim())
+      .maybeSingle();
 
     if (error || !data) {
       setAuthError('Codice non valido. Verifica e riprova.');
@@ -55,7 +52,6 @@ export default function App() {
     setAuthError('');
   };
 
-  // SCHERMATA DI ACCESS0
   if (!currentUser) {
     return (
       <main className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
@@ -71,7 +67,6 @@ export default function App() {
             </div>
           )}
 
-          {/* FORM ACCESSO DOCENTE */}
           <form onSubmit={handleDocenteLogin} className="space-y-4">
             <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest block ml-2">Accesso Docente</label>
             <input 
@@ -92,7 +87,6 @@ export default function App() {
             <div className="flex-grow border-t border-slate-200"></div>
           </div>
 
-          {/* FORM ACCESSO ADMIN */}
           <form onSubmit={handleAdminLogin} className="space-y-4">
             <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest block ml-2">Accesso Amministratore</label>
             <input 
@@ -111,10 +105,8 @@ export default function App() {
     );
   }
 
-  // ACCESSO EFFETTUATO: VISTA ADMIN O DOCENTE
   return (
     <div>
-      {/* BARRA DI DISCONNESSIONE IN ALTO */}
       <div className="bg-slate-900 text-white px-8 py-3 flex justify-between items-center text-xs font-bold">
         <span>Utente: <strong className="uppercase">{currentUser === 'ADMIN' ? 'Amministratore' : currentUser.nome}</strong></span>
         <button onClick={logout} className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest">
@@ -146,13 +138,19 @@ function AdminPanel() {
 
   const loadData = useCallback(async () => {
     const [d, i, p, dc] = await Promise.all([
-      supabase.from('docenti').select('*').order('nome'),
+      supabase.from('docenti').select('*'),
       supabase.from('impegni').select('*').order('data', { ascending: false }),
       supabase.from('piani').select('*'),
       supabase.from('documenti').select('*').order('created_at', { ascending: false })
     ]);
-    setData({ docenti: d.data || [], impegni: i.data || [], piani: p.data || [], docs: dc.data || [] });
-  }, []);
+    
+    const impegniCaricati = i.data || [];
+    setData({ docenti: d.data || [], impegni: impegniCaricati, piani: p.data || [], docs: dc.data || [] });
+    
+    if (impegniCaricati.length > 0 && !activeImp) {
+      setActiveImp(impegniCaricati[0].id);
+    }
+  }, [activeImp]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -181,25 +179,31 @@ function AdminPanel() {
       const pianiDoc = piani.filter((p: any) => p.docente_id === docente.id);
       
       const oreAeff = pianiDoc
-        .filter((p: any) => p.tipo === 'A' && (p.stato === 'P' || p.stato === 'AG'))
-        .reduce((sum: number, p: any) => sum + p.ore_effettive, 0);
+        .filter((p: any) => {
+          const imp = impegni.find((i: any) => i.id === p.impegno_id);
+          return imp && imp.tipo === 'A' && (p.stato === 'P' || p.stato === 'AG');
+        })
+        .reduce((sum: number, p: any) => sum + (Number(p.ore_effettive) || 0), 0);
       
       const oreBeff = pianiDoc
-        .filter((p: any) => p.tipo === 'B' && (p.stato === 'P' || p.stato === 'AG'))
-        .reduce((sum: number, p: any) => sum + p.ore_effettive, 0);
+        .filter((p: any) => {
+          const imp = impegni.find((i: any) => i.id === p.impegno_id);
+          return imp && imp.tipo === 'B' && (p.stato === 'P' || p.stato === 'AG');
+        })
+        .reduce((sum: number, p: any) => sum + (Number(p.ore_effettive) || 0), 0);
 
       const row: any[] = [
         docente.nome,
-        docente.contratto,
-        docente.ore_a_dovute,
-        docente.ore_b_dovute,
+        docente.contratto || 'INTERA',
+        docente.ore_a_dovute || 40,
+        docente.ore_b_dovute || 40,
         oreAeff,
         oreBeff
       ];
 
       impegni.forEach((imp: any) => {
         const piano = pianiDoc.find((p: any) => p.impegno_id === imp.id);
-        row.push(piano ? (piano.stato || "?") : "-");
+        row.push(piano ? (piano.stato || "PRENOTATO") : "-");
       });
 
       return row;
@@ -229,7 +233,7 @@ function AdminPanel() {
     setFormImp({
       titolo: imp.titolo,
       data: imp.data,
-      ore: imp.ore || imp.durata_max || 2,
+      ore: imp.ore || 2,
       tipo: imp.tipo || 'A'
     });
     setTab('impegni');
@@ -302,7 +306,6 @@ function AdminPanel() {
     }
 
     if (error) {
-      console.error("Errore:", error);
       alert("❌ Errore: " + error.message); 
     } else {
       alert(editingImpId ? "✅ ATTIVITÀ AGGIORNATA!" : "✅ ATTIVITÀ SALVATA!");
@@ -315,7 +318,6 @@ function AdminPanel() {
   return (
     <main className="max-w-[1400px] mx-auto p-6 lg:p-10">
       
-      {/* HEADER CON TASTO EXCEL */}
       <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
         <h1 className="text-3xl font-black uppercase italic tracking-tighter text-slate-900">Admin Control Panel</h1>
         <button 
@@ -347,23 +349,38 @@ function AdminPanel() {
         ))}
       </nav>
 
-      {/* TAB LISTA DOCENTI */}
       {tab === 'docenti' && !selDoc && (
         <div className="grid grid-cols-1 gap-4">
           {data.docenti.map((d: any) => {
             const pianiDoc = data.piani.filter((p: any) => p.docente_id === d.id);
+            
             const stats = {
-              pianA: pianiDoc.filter((p: any) => p.tipo === 'A').reduce((s: number, c: any) => s + c.ore_effettive, 0),
-              svoltA: pianiDoc.filter((p: any) => p.tipo === 'A' && (p.stato === 'P' || p.stato === 'AG')).reduce((s: number, c: any) => s + c.ore_effettive, 0),
-              pianB: pianiDoc.filter((p: any) => p.tipo === 'B').reduce((s: number, c: any) => s + c.ore_effettive, 0),
-              svoltB: pianiDoc.filter((p: any) => p.tipo === 'B' && (p.stato === 'P' || p.stato === 'AG')).reduce((s: number, c: any) => s + c.ore_effettive, 0),
+              pianA: pianiDoc.filter((p: any) => {
+                const imp = data.impegni.find((i: any) => i.id === p.impegno_id);
+                return imp && imp.tipo === 'A';
+              }).reduce((s: number, c: any) => s + (Number(c.ore_effettive) || 0), 0),
+              
+              svoltA: pianiDoc.filter((p: any) => {
+                const imp = data.impegni.find((i: any) => i.id === p.impegno_id);
+                return imp && imp.tipo === 'A' && (p.stato === 'P' || p.stato === 'AG');
+              }).reduce((s: number, c: any) => s + (Number(c.ore_effettive) || 0), 0),
+              
+              pianB: pianiDoc.filter((p: any) => {
+                const imp = data.impegni.find((i: any) => i.id === p.impegno_id);
+                return imp && imp.tipo === 'B';
+              }).reduce((s: number, c: any) => s + (Number(c.ore_effettive) || 0), 0),
+              
+              svoltB: pianiDoc.filter((p: any) => {
+                const imp = data.impegni.find((i: any) => i.id === p.impegno_id);
+                return imp && imp.tipo === 'B' && (p.stato === 'P' || p.stato === 'AG');
+              }).reduce((s: number, c: any) => s + (Number(c.ore_effettive) || 0), 0),
             };
 
             return (
               <div key={d.id} className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col xl:flex-row items-center gap-6 hover:shadow-lg transition-all group">
                 <div className="flex items-center gap-5 min-w-[220px]">
                   <div className="w-12 h-12 bg-slate-900 text-white rounded-xl flex items-center justify-center font-black text-lg italic group-hover:bg-blue-700 transition-all">
-                    {d.nome[0]}
+                    {d.nome ? d.nome[0] : 'U'}
                   </div>
                   <div>
                     <h3 className="text-lg font-black uppercase text-slate-800 leading-none mb-1.5">{d.nome}</h3>
@@ -377,7 +394,7 @@ function AdminPanel() {
                   <div className="bg-blue-50/50 p-4 rounded-[1.5rem] border border-blue-100">
                     <div className="flex justify-between items-center mb-2 px-1">
                       <span className="text-[9px] font-black text-blue-800 uppercase italic">Comma A</span>
-                      <span className="text-[9px] font-bold text-slate-400">{d.ore_a_dovute}h Tot.</span>
+                      <span className="text-[9px] font-bold text-slate-400">{d.ore_a_dovute || 40}h Tot.</span>
                     </div>
                     <div className="flex justify-around items-end">
                       <div className="text-center">
@@ -395,7 +412,7 @@ function AdminPanel() {
                   <div className="bg-indigo-50/50 p-4 rounded-[1.5rem] border border-indigo-100">
                     <div className="flex justify-between items-center mb-2 px-1">
                       <span className="text-[9px] font-black text-indigo-800 uppercase italic">Comma B</span>
-                      <span className="text-[9px] font-bold text-slate-400">{d.ore_b_dovute}h Tot.</span>
+                      <span className="text-[9px] font-bold text-slate-400">{d.ore_b_dovute || 40}h Tot.</span>
                     </div>
                     <div className="flex justify-around items-end">
                       <div className="text-center">
@@ -425,7 +442,6 @@ function AdminPanel() {
         </div>
       )}
 
-      {/* TAB NUOVO DOCENTE */}
       {tab === 'nuovo_doc' && (
         <div className="max-w-3xl mx-auto bg-white p-10 md:p-12 rounded-[3.5rem] shadow-2xl border animate-in zoom-in">
           <h2 className="text-3xl font-black mb-8 uppercase italic text-blue-800 tracking-tighter">Registrazione Staff</h2>
@@ -459,7 +475,6 @@ function AdminPanel() {
         </div>
       )}
 
-      {/* TAB NUOVA / MODIFICA ATTIVITÀ */}
       {tab === 'impegni' && (
         <div className="max-w-2xl mx-auto bg-white p-12 rounded-[3.5rem] shadow-2xl border animate-in zoom-in">
           <div className="flex justify-between items-center mb-10">
@@ -489,7 +504,6 @@ function AdminPanel() {
         </div>
       )}
 
-      {/* TAB VALIDAZIONE RAPIDA (APPELLO) */}
       {tab === 'appello' && (
         <div className="grid lg:grid-cols-2 gap-8 animate-in fade-in">
           <div className="space-y-3">
@@ -503,24 +517,12 @@ function AdminPanel() {
                 <div>
                   <span className={`text-[8px] font-black px-2 py-0.5 rounded-full mb-2 inline-block ${i.tipo === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'}`}>COMMA {i.tipo}</span>
                   <h4 className="font-black uppercase text-lg tracking-tighter">{i.titolo}</h4>
-                  <p className="text-[9px] font-bold text-slate-300 uppercase italic">{i.data} • {i.ore || i.durata_max}H</p>
+                  <p className="text-[9px] font-bold text-slate-300 uppercase italic">{i.data} • {i.ore}H</p>
                 </div>
 
                 <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                  <button 
-                    onClick={() => startEditImpegno(i)} 
-                    className="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
-                    title="Modifica Attività"
-                  >
-                    ✏️
-                  </button>
-                  <button 
-                    onClick={() => deleteImpegno(i.id)} 
-                    className="p-3 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                    title="Elimina Attività"
-                  >
-                    🗑️
-                  </button>
+                  <button onClick={() => startEditImpegno(i)} className="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all">✏️</button>
+                  <button onClick={() => deleteImpegno(i.id)} className="p-3 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all">🗑️</button>
                 </div>
               </div>
             ))}
@@ -534,7 +536,7 @@ function AdminPanel() {
                 return (
                   <div key={p.id} className="p-5 bg-slate-50 rounded-[1.8rem] flex justify-between items-center">
                     <div>
-                      <p className="font-black uppercase text-[11px] text-slate-800">{d?.nome}</p>
+                      <p className="font-black uppercase text-[11px] text-slate-800">{d?.nome || 'Docente'}</p>
                       <p className="text-[9px] font-bold text-blue-600 uppercase">{p.ore_effettive}H</p>
                     </div>
                     <div className="flex bg-white p-1 rounded-full gap-1 border">
@@ -560,7 +562,6 @@ function AdminPanel() {
         </div>
       )}
 
-      {/* TAB BACHECA DOCUMENTI */}
       {tab === 'documenti' && (
         <div className="bg-white p-10 rounded-[3.5rem] shadow-2xl border animate-in zoom-in">
           <div className="grid lg:grid-cols-2 gap-12">
@@ -603,7 +604,6 @@ function AdminPanel() {
         </div>
       )}
 
-      {/* DETTAGLIO DOCENTE SELEZIONATO */}
       {selDoc && (
         <div className="mt-12 border-t-[8px] border-slate-900 pt-12">
           <div className="flex justify-between items-center mb-6">
@@ -651,36 +651,41 @@ function DocentePanel({ docente, adminMode = false }: any) {
   };
 
   const stats = {
-    vA: piani.filter(p => p.tipo === 'A' && (p.stato === 'P' || p.stato === 'AG')).reduce((s, c) => s + c.ore_effettive, 0),
-    vB: piani.filter(p => p.tipo === 'B' && (p.stato === 'P' || p.stato === 'AG')).reduce((s, c) => s + c.ore_effettive, 0),
+    vA: piani.filter(p => {
+      const imp = impegni.find(i => i.id === p.impegno_id);
+      return imp && imp.tipo === 'A' && (p.stato === 'P' || p.stato === 'AG');
+    }).reduce((s, c) => s + (Number(c.ore_effettive) || 0), 0),
+    
+    vB: piani.filter(p => {
+      const imp = impegni.find(i => i.id === p.impegno_id);
+      return imp && imp.tipo === 'B' && (p.stato === 'P' || p.stato === 'AG');
+    }).reduce((s, c) => s + (Number(c.ore_effettive) || 0), 0),
   };
 
   return (
     <div className="max-w-6xl mx-auto px-4 pb-20">
       
-      {/* SEZIONE 1: HEADER E PROGRESSO */}
       <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-slate-100 mb-10">
         <div className="flex flex-wrap items-center justify-between gap-6 mb-8">
           <div className="flex items-center gap-6">
             <div className="w-16 h-16 bg-blue-800 rounded-2xl flex items-center justify-center text-white font-black italic text-3xl shadow-lg shadow-blue-200">
-              {docente.nome[0]}
+              {docente.nome ? docente.nome[0] : 'U'}
             </div>
             <div>
               <h2 className="text-3xl font-black uppercase tracking-tighter text-slate-800">{docente.nome}</h2>
               <div className="flex gap-3 mt-1 font-bold text-[10px] uppercase">
-                <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded">{docente.contratto}</span>
-                <span className="text-slate-400 bg-slate-50 px-2 py-0.5 rounded">{docente.ore_settimanali}H / SETT</span>
+                <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded">{docente.contratto || 'INTERA'}</span>
+                <span className="text-slate-400 bg-slate-50 px-2 py-0.5 rounded">{docente.ore_settimanali || 18}H / SETT</span>
               </div>
             </div>
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <ProgressBar label="Validato Comma A (P+AG)" attuale={stats.vA} target={docente.ore_a_dovute} color="blue" />
-          <ProgressBar label="Validato Comma B (P+AG)" attuale={stats.vB} target={docente.ore_b_dovute} color="indigo" />
+          <ProgressBar label="Validato Comma A (P+AG)" attuale={stats.vA} target={docente.ore_a_dovute || 40} color="blue" />
+          <ProgressBar label="Validato Comma B (P+AG)" attuale={stats.vB} target={docente.ore_b_dovute || 40} color="indigo" />
         </div>
       </div>
 
-      {/* SEZIONE 2: NAVIGAZIONE */}
       <nav className="flex flex-wrap gap-3 mb-12 justify-center print:hidden">
         {[
           { id: 'calendario', label: 'Prenota' },
@@ -699,9 +704,6 @@ function DocentePanel({ docente, adminMode = false }: any) {
         ))}
       </nav>
 
-      {/* SEZIONE 3: CONTENUTO TAB */}
-      
-      {/* TAB CALENDARIO */}
       {tab === 'calendario' && (
         <div className="grid gap-4 animate-in fade-in">
            {impegni.map(i => {
@@ -709,8 +711,8 @@ function DocentePanel({ docente, adminMode = false }: any) {
              return (
                <div key={i.id} className={`bg-white rounded-[2rem] border p-6 flex items-center transition-all ${p ? 'border-blue-500 bg-blue-50/20 shadow-inner' : 'border-slate-100 hover:shadow-xl'}`}>
                  <div className="w-20 text-center border-r border-slate-100 pr-6">
-                   <span className="block text-2xl font-black text-slate-800 leading-none">{i.data.split('-')[2]}</span>
-                   <span className="text-[10px] font-bold text-slate-400 uppercase">{i.data.split('-')[1]}/{i.data.split('-')[0]}</span>
+                   <span className="block text-2xl font-black text-slate-800 leading-none">{i.data ? i.data.split('-')[2] : '--'}</span>
+                   <span className="text-[10px] font-bold text-slate-400 uppercase">{i.data ? `${i.data.split('-')[1]}/${i.data.split('-')[0]}` : ''}</span>
                  </div>
                  <div className="flex-1 px-8 text-left">
                    <span className={`text-[8px] font-black px-2 py-1 rounded uppercase mb-2 inline-block ${i.tipo === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'}`}>Comma {i.tipo}</span>
@@ -726,10 +728,15 @@ function DocentePanel({ docente, adminMode = false }: any) {
                    </div>
                    <button 
                     onClick={async () => {
-                      if(p) { await supabase.from('piani').delete().eq('id', p.id); } 
-                      else {
+                      if(p) { 
+                        await supabase.from('piani').delete().eq('id', p.id); 
+                      } else {
                         const h = (document.getElementById(`ore-${i.id}`) as HTMLInputElement).value;
-                        await supabase.from('piani').insert([{ docente_id: docente.id, impegno_id: i.id, ore_effettive: Number(h), tipo: i.tipo }]);
+                        await supabase.from('piani').insert([{ 
+                          docente_id: docente.id, 
+                          impegno_id: i.id, 
+                          ore_effettive: Number(h) 
+                        }]);
                       }
                       load();
                     }}
@@ -744,7 +751,6 @@ function DocentePanel({ docente, adminMode = false }: any) {
         </div>
       )}
 
-      {/* TAB MIEI */}
       {tab === 'miei' && (
         <div className="grid gap-4 animate-in fade-in">
           {piani.length === 0 ? (
@@ -759,7 +765,7 @@ function DocentePanel({ docente, adminMode = false }: any) {
                   <div className="text-left">
                     <p className="text-[10px] font-black text-slate-400 uppercase mb-1">{info?.data}</p>
                     <h4 className="text-lg font-black uppercase text-slate-800">{info?.titolo}</h4>
-                    <p className="text-xs font-bold text-blue-600 uppercase">Comma {p.tipo} • {p.ore_effettive} Ore</p>
+                    <p className="text-xs font-bold text-blue-600 uppercase">Comma {info?.tipo || 'A'} • {p.ore_effettive} Ore</p>
                   </div>
 
                   <div className="flex items-center gap-4 mt-4 sm:mt-0">
@@ -796,7 +802,6 @@ function DocentePanel({ docente, adminMode = false }: any) {
         </div>
       )}
 
-      {/* TAB DOCUMENTI */}
       {tab === 'documenti' && (
         <div className="grid gap-4 animate-in fade-in">
           {documenti.map(doc => (
@@ -814,7 +819,6 @@ function DocentePanel({ docente, adminMode = false }: any) {
         </div>
       )}
 
-      {/* TAB REPORT PDF */}
       {tab === 'report' && (
         <div id="piano-stampa" className="bg-white p-12 rounded-[3rem] shadow-2xl border animate-in zoom-in text-left">
            <div className="flex justify-between items-start border-b-8 border-slate-900 pb-10 mb-10">
@@ -841,7 +845,7 @@ function DocentePanel({ docente, adminMode = false }: any) {
                    <tr key={p.id} className="border-b border-slate-50 font-bold text-slate-700">
                      <td className="py-6">{info?.data}</td>
                      <td className="uppercase">{info?.titolo}</td>
-                     <td className="text-center">Comma {p.tipo}</td>
+                     <td className="text-center">Comma {info?.tipo || 'A'}</td>
                      <td className={`text-center text-[10px] font-black uppercase ${p.stato === 'P' ? 'text-emerald-500' : p.stato === 'AG' ? 'text-sky-500' : p.stato === 'ANG' ? 'text-red-500' : 'text-slate-300'}`}>
                         {p.stato || 'ATTESA'}
                      </td>
@@ -854,11 +858,11 @@ function DocentePanel({ docente, adminMode = false }: any) {
            <div className="mt-16 grid grid-cols-2 gap-10">
              <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100">
                <p className="text-[10px] font-black text-slate-400 uppercase mb-2 italic tracking-widest">Totale Comma A (Validato)</p>
-               <p className="text-4xl font-black text-slate-800">{stats.vA} / {docente.ore_a_dovute}H</p>
+               <p className="text-4xl font-black text-slate-800">{stats.vA} / {docente.ore_a_dovute || 40}H</p>
              </div>
              <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100">
                <p className="text-[10px] font-black text-slate-400 uppercase mb-2 italic tracking-widest">Totale Comma B (Validato)</p>
-               <p className="text-4xl font-black text-slate-800">{stats.vB} / {docente.ore_b_dovute}H</p>
+               <p className="text-4xl font-black text-slate-800">{stats.vB} / {docente.ore_b_dovute || 40}H</p>
              </div>
            </div>
         </div>
