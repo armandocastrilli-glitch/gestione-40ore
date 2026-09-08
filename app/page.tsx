@@ -624,6 +624,13 @@ function DocentePanel({ docente, adminMode = false }: any) {
   const [documenti, setDocumenti] = useState<any[]>([]);
   const [tab, setTab] = useState('calendario');
 
+  // Stati per la modifica del contratto (attivi se adminMode è true)
+  const [isEditingContract, setIsEditingContract] = useState(false);
+  const [contratto, setContratto] = useState(docente.contratto || 'INTERA');
+  const [oreSettimanali, setOreSettimanali] = useState(docente.ore_settimanali || 18);
+  const [oreADovute, setOreADovute] = useState(docente.ore_a_dovute || 40);
+  const [oreBDovute, setOreBDovute] = useState(docente.ore_b_dovute || 40);
+
   const load = useCallback(async () => {
     const [i, p, d] = await Promise.all([
       supabase.from('impegni').select('*').order('data', { ascending: true }),
@@ -647,6 +654,30 @@ function DocentePanel({ docente, adminMode = false }: any) {
       alert("Errore nel salvataggio");
     } else {
       load(); 
+    }
+  };
+
+  const saveContratto = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const { error } = await supabase
+      .from('docenti')
+      .update({
+        contratto,
+        ore_settimanali: Number(oreSettimanali),
+        ore_a_dovute: Number(oreADovute),
+        ore_b_dovute: Number(oreBDovute)
+      })
+      .eq('id', docente.id);
+
+    if (error) {
+      alert("Errore durante l'aggiornamento del contratto");
+    } else {
+      alert("Contratto aggiornato con successo!");
+      setIsEditingContract(false);
+      docente.contratto = contratto;
+      docente.ore_settimanali = Number(oreSettimanali);
+      docente.ore_a_dovute = Number(oreADovute);
+      docente.ore_b_dovute = Number(oreBDovute);
     }
   };
 
@@ -679,7 +710,41 @@ function DocentePanel({ docente, adminMode = false }: any) {
               </div>
             </div>
           </div>
+          {adminMode && (
+            <button 
+              onClick={() => setIsEditingContract(!isEditingContract)}
+              className="bg-slate-900 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 shadow-md transition-all"
+            >
+              {isEditingContract ? 'Annulla Modifica' : 'Modifica Contratto'}
+            </button>
+          )}
         </div>
+
+        {/* Modulo di Modifica Contratto (visibile solo se admin preme il tasto) */}
+        {isEditingContract && adminMode && (
+          <form onSubmit={saveContratto} className="bg-slate-50 p-6 rounded-[2rem] border mb-8 grid grid-cols-1 md:grid-cols-4 gap-4 animate-in fade-in">
+            <div>
+              <label className="block text-[9px] font-black uppercase text-slate-400 mb-1">Tipo Contratto</label>
+              <input type="text" value={contratto} onChange={(e) => setContratto(e.target.value)} className="w-full bg-white border rounded-xl p-3 text-xs font-bold uppercase" required />
+            </div>
+            <div>
+              <label className="block text-[9px] font-black uppercase text-slate-400 mb-1">Ore Settimanali</label>
+              <input type="number" step="0.5" value={oreSettimanali} onChange={(e) => setOreSettimanali(e.target.value)} className="w-full bg-white border rounded-xl p-3 text-xs font-bold" required />
+            </div>
+            <div>
+              <label className="block text-[9px] font-black uppercase text-slate-400 mb-1">Ore Comma A Dovute</label>
+              <input type="number" step="0.5" value={oreADovute} onChange={(e) => setOreADovute(e.target.value)} className="w-full bg-white border rounded-xl p-3 text-xs font-bold" required />
+            </div>
+            <div>
+              <label className="block text-[9px] font-black uppercase text-slate-400 mb-1">Ore Comma B Dovute</label>
+              <input type="number" step="0.5" value={oreBDovute} onChange={(e) => setOreBDovute(e.target.value)} className="w-full bg-white border rounded-xl p-3 text-xs font-bold" required />
+            </div>
+            <div className="md:col-span-4 flex justify-end">
+              <button type="submit" className="bg-emerald-600 text-white px-8 py-3 rounded-xl text-[10px] font-black uppercase shadow-lg hover:bg-emerald-700 transition-all">Salva Contratto</button>
+            </div>
+          </form>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <ProgressBar label="Validato Comma A (P+AG)" attuale={stats.vA} target={docente.ore_a_dovute || 40} color="blue" />
           <ProgressBar label="Validato Comma B (P+AG)" attuale={stats.vB} target={docente.ore_b_dovute || 40} color="indigo" />
@@ -885,6 +950,7 @@ function ProgressBar({ label, attuale, target, color }: any) {
         <span className="text-xl font-black leading-none">
           {attuale} <span className="text-slate-300 text-sm font-bold">/ {target}H</span>
         </span>
+
       </div>
       <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
         <div 
