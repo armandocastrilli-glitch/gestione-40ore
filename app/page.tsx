@@ -1,75 +1,21 @@
-"use client";
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-);
-
-export default function SProV3_Complete() {
-  const [user, setUser] = useState<any>(null);
-  const [loginCode, setLoginCode] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const handleLogin = async () => {
-    const code = loginCode.trim().toUpperCase();
-    if (!code) return;
-    setLoading(true);
-    if (code === 'ADMIN123') {
-      setUser({ id: 'admin', nome: 'Direzione Generale', role: 'admin' });
-    } else {
-      const { data } = await supabase.from('docenti').select('*').eq('codice_accesso', code).single();
-      if (data) setUser(data);
-      else alert("Codice errato.");
-    }
-    setLoading(false);
-  };
-
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-[#020617] flex items-center justify-center p-4">
-        <div className="bg-white p-10 md:p-12 rounded-[3rem] shadow-2xl w-full max-w-xl border-[10px] border-slate-100">
-          <div className="text-center mb-10">
-            <h1 className="text-6xl font-black italic tracking-[-0.1em] text-blue-800 uppercase leading-none">S-PRO</h1>
-            <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.6em] mt-6">Secure Academic Engine</p>
-          </div>
-          <input 
-            type="text" placeholder="ACCESS CODE" 
-            className="w-full p-6 bg-slate-50 border-4 border-transparent focus:border-blue-600 rounded-[2rem] text-center text-3xl font-mono uppercase outline-none mb-6"
-            value={loginCode} onChange={(e) => setLoginCode(e.target.value)}
-          />
-          <button onClick={handleLogin} className="w-full bg-blue-700 text-white p-6 rounded-[2rem] font-black text-2xl uppercase shadow-xl hover:bg-blue-800">
-            {loading ? 'WAIT...' : 'AUTHENTICATE'}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900">
-      <header className="bg-white/80 backdrop-blur-xl border-b px-6 py-4 flex justify-between items-center sticky top-0 z-50">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-blue-800 rounded-xl flex items-center justify-center text-white font-black italic text-xl shadow-md">S</div>
-          <div>
-            <h2 className="text-md font-black uppercase leading-none">{user.nome}</h2>
-            <p className="text-[9px] font-bold text-blue-500 uppercase mt-1 tracking-widest">{user.role === 'admin' ? 'Master Admin' : 'Academic Staff'}</p>
-          </div>
-        </div>
-        <button onClick={() => setUser(null)} className="bg-slate-900 text-white px-6 py-2.5 rounded-full font-black text-[9px] uppercase tracking-widest hover:bg-red-600 transition-all shadow-md">Logout</button>
-      </header>
-      {user.role === 'admin' ? <AdminPanel /> : <DocentePanel docente={user} />}
-    </div>
-  );
-}
 import * as XLSX from 'xlsx';
-function AdminPanel() {
+
+// Configura Supabase con le tue credenziali
+const SUPABASE_URL = "https://tvjcpczzlqtwtefvnrhk.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR2amNwY3p6bHF0d3RlZnZucmhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1NzAzMTcsImV4cCI6MjA4NjE0NjMxN30.w2VzO83AGEUERjs6_d0NnSghQU1SeZNguNZe171ZPK4";
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+export default function AdminPanel() {
   const [tab, setTab] = useState('docenti');
   const [data, setData] = useState({ docenti: [], impegni: [], piani: [], docs: [] });
   const [selDoc, setSelDoc] = useState<any>(null);
   const [activeImp, setActiveImp] = useState<string | null>(null);
   
+  // Stato per gestire la modifica di un impegno esistente
+  const [editingImpId, setEditingImpId] = useState<string | null>(null);
+
   const [formDoc, setFormDoc] = useState({ nome: '', contratto: 'INTERA', ore: 18, mesi: 9 });
   const [formImp, setFormImp] = useState({ titolo: '', data: '', ore: 2, tipo: 'A' });
 
@@ -91,12 +37,11 @@ function AdminPanel() {
     if(!error) loadData();
   };
 
-  // --- FUNZIONE EXCEL (CORRETTA) ---
   const exportExcelReport = () => {
     const { docenti, impegni, piani } = data;
     if (docenti.length === 0) return alert("Nessun dato da esportare");
 
-    const headerRow1 = ["REGISTRO GENERALE ATTIVITÀ", "", "", "", "", "", ...impegni.map(i => i.titolo)];
+    const headerRow1 = ["REGISTRO GENERALE ATTIVITÀ", "", "", "", "", "", ...impegni.map((i: any) => i.titolo)];
     const headerRow2 = [
       "Nominativo", 
       "Contratto", 
@@ -104,7 +49,7 @@ function AdminPanel() {
       "Ore B Dovute", 
       "Tot. Realizzate A", 
       "Tot. Realizzate B", 
-      ...impegni.map(i => i.data)
+      ...impegni.map((i: any) => i.data)
     ];
 
     const rows = docenti.map((docente: any) => {
@@ -112,13 +57,13 @@ function AdminPanel() {
       
       const oreAeff = pianiDoc
         .filter((p: any) => p.tipo === 'A' && (p.stato === 'P' || p.stato === 'AG'))
-        .reduce((sum, p: any) => sum + p.ore_effettive, 0);
+        .reduce((sum: number, p: any) => sum + p.ore_effettive, 0);
       
       const oreBeff = pianiDoc
         .filter((p: any) => p.tipo === 'B' && (p.stato === 'P' || p.stato === 'AG'))
-        .reduce((sum, p: any) => sum + p.ore_effettive, 0);
+        .reduce((sum: number, p: any) => sum + p.ore_effettive, 0);
 
-      const row = [
+      const row: any[] = [
         docente.nome,
         docente.contratto,
         docente.ore_a_dovute,
@@ -143,10 +88,33 @@ function AdminPanel() {
     XLSX.writeFile(workbook, `Report_Scuola_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
+  // --- FUNZIONE ELIMINA IMPEGNO ---
   const deleteImpegno = async (id: string) => {
-    if(!confirm("Eliminando l'impegno cancellerai le ore di tutti i docenti per questa attività. Procedere?")) return;
+    if(!confirm("⚠️ Eliminando l'impegno cancellerai le ore di tutti i docenti per questa attività. Procedere?")) return;
     const { error } = await supabase.from('impegni').delete().eq('id', id);
-    if(!error) { setActiveImp(null); loadData(); }
+    if(!error) { 
+      if (activeImp === id) setActiveImp(null); 
+      loadData(); 
+    } else {
+      alert("Errore durante l'eliminazione: " + error.message);
+    }
+  };
+
+  // --- PREPARA FORM PER MODIFICA ---
+  const startEditImpegno = (imp: any) => {
+    setEditingImpId(imp.id);
+    setFormImp({
+      titolo: imp.titolo,
+      data: imp.data,
+      ore: imp.ore || imp.durata_max || 2,
+      tipo: imp.tipo || 'A'
+    });
+    setTab('impegni');
+  };
+
+  const cancelEdit = () => {
+    setEditingImpId(null);
+    setFormImp({ titolo: '', data: '', ore: 2, tipo: 'A' });
   };
 
   const saveDocente = async () => {
@@ -188,31 +156,39 @@ function AdminPanel() {
     } else { alert("Errore: " + error.message); }
   };
 
-const saveImpegno = async () => {
-  // 1. Controllo validità
-  if (!formImp.titolo || !formImp.data) {
-    return alert("⚠️ Inserisci Titolo e Data!");
-  }
+  // --- CREA O AGGIORNA IMPEGNO ---
+  const saveImpegno = async () => {
+    if (!formImp.titolo || !formImp.data) {
+      return alert("⚠️ Inserisci Titolo e Data!");
+    }
 
-  // 2. Invio dati
-  const { error } = await supabase.from('impegni').insert([{
-    titolo: formImp.titolo, 
-    data: formImp.data, 
-    tipo: formImp.tipo,
-    ore: Number(formImp.ore) // Usiamo 'ore' perché il tuo DB la richiede
-  }]);
+    const payload = {
+      titolo: formImp.titolo, 
+      data: formImp.data, 
+      tipo: formImp.tipo,
+      ore: Number(formImp.ore)
+    };
 
-  // 3. Risposta
-  if (error) {
-    console.error("Errore:", error);
-    alert("❌ Errore: " + error.message); 
-  } else {
-    alert("✅ ATTIVITÀ SALVATA!");
-    setFormImp({ titolo: '', data: '', ore: 2, tipo: 'A' });
-    setTab('appello'); 
-    loadData(); 
-  }
-};
+    let error;
+
+    if (editingImpId) {
+      const res = await supabase.from('impegni').update(payload).eq('id', editingImpId);
+      error = res.error;
+    } else {
+      const res = await supabase.from('impegni').insert([payload]);
+      error = res.error;
+    }
+
+    if (error) {
+      console.error("Errore:", error);
+      alert("❌ Errore: " + error.message); 
+    } else {
+      alert(editingImpId ? "✅ ATTIVITÀ AGGIORNATA!" : "✅ ATTIVITÀ SALVATA!");
+      cancelEdit();
+      setTab('appello'); 
+      loadData(); 
+    }
+  };
 
   return (
     <main className="max-w-[1400px] mx-auto p-6 lg:p-10">
@@ -232,12 +208,16 @@ const saveImpegno = async () => {
         {[
           { id: 'docenti', label: 'Lista Docenti' },
           { id: 'nuovo_doc', label: 'Aggiungi Staff' },
-          { id: 'impegni', label: 'Nuova Attività' },
+          { id: 'impegni', label: editingImpId ? 'Modifica Attività' : 'Nuova Attività' },
           { id: 'appello', label: 'Validazione' },
           { id: 'documenti', label: 'Bacheca File' }
         ].map(t => (
           <button 
-            key={t.id} onClick={() => {setTab(t.id); setSelDoc(null)}}
+            key={t.id} onClick={() => {
+              setTab(t.id); 
+              setSelDoc(null);
+              if (t.id !== 'impegni' && editingImpId) cancelEdit();
+            }}
             className={`px-8 py-4 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest transition-all border-4 ${tab === t.id ? 'bg-blue-800 border-blue-800 text-white shadow-xl' : 'bg-white border-transparent text-slate-400 hover:text-slate-900'}`}
           >
             {t.label}
@@ -251,10 +231,10 @@ const saveImpegno = async () => {
           {data.docenti.map((d: any) => {
             const pianiDoc = data.piani.filter((p: any) => p.docente_id === d.id);
             const stats = {
-              pianA: pianiDoc.filter((p: any) => p.tipo === 'A').reduce((s, c) => s + c.ore_effettive, 0),
-              svoltA: pianiDoc.filter((p: any) => p.tipo === 'A' && (p.stato === 'P' || p.stato === 'AG')).reduce((s, c) => s + c.ore_effettive, 0),
-              pianB: pianiDoc.filter((p: any) => p.tipo === 'B').reduce((s, c) => s + c.ore_effettive, 0),
-              svoltB: pianiDoc.filter((p: any) => p.tipo === 'B' && (p.stato === 'P' || p.stato === 'AG')).reduce((s, c) => s + c.ore_effettive, 0),
+              pianA: pianiDoc.filter((p: any) => p.tipo === 'A').reduce((s: number, c: any) => s + c.ore_effettive, 0),
+              svoltA: pianiDoc.filter((p: any) => p.tipo === 'A' && (p.stato === 'P' || p.stato === 'AG')).reduce((s: number, c: any) => s + c.ore_effettive, 0),
+              pianB: pianiDoc.filter((p: any) => p.tipo === 'B').reduce((s: number, c: any) => s + c.ore_effettive, 0),
+              svoltB: pianiDoc.filter((p: any) => p.tipo === 'B' && (p.stato === 'P' || p.stato === 'AG')).reduce((s: number, c: any) => s + c.ore_effettive, 0),
             };
 
             return (
@@ -357,10 +337,19 @@ const saveImpegno = async () => {
         </div>
       )}
 
-      {/* TAB NUOVA ATTIVITÀ */}
+      {/* TAB NUOVA / MODIFICA ATTIVITÀ */}
       {tab === 'impegni' && (
         <div className="max-w-2xl mx-auto bg-white p-12 rounded-[3.5rem] shadow-2xl border animate-in zoom-in">
-          <h2 className="text-3xl font-black mb-10 uppercase italic text-orange-600 tracking-tighter">Crea Nuova Attività</h2>
+          <div className="flex justify-between items-center mb-10">
+            <h2 className="text-3xl font-black uppercase italic text-orange-600 tracking-tighter">
+              {editingImpId ? 'Modifica Attività' : 'Crea Nuova Attività'}
+            </h2>
+            {editingImpId && (
+              <button onClick={cancelEdit} className="text-[9px] font-black uppercase text-slate-400 hover:text-slate-800">
+                ✖ Annulla
+              </button>
+            )}
+          </div>
           <div className="space-y-6">
             <input type="text" placeholder="TITOLO ATTIVITÀ" className="w-full p-6 bg-slate-50 rounded-[2rem] font-bold uppercase outline-none focus:border-orange-500 border-4 border-transparent" value={formImp.titolo} onChange={e => setFormImp({...formImp, titolo: e.target.value})} />
             <div className="grid grid-cols-2 gap-4">
@@ -371,7 +360,9 @@ const saveImpegno = async () => {
               </div>
             </div>
             <input type="number" step="0.5" placeholder="ORE PREVISTE" className="w-full p-6 bg-slate-50 rounded-[2rem] font-bold outline-none" value={formImp.ore} onChange={e => setFormImp({...formImp, ore: Number(e.target.value)})} />
-            <button onClick={saveImpegno} className="w-full bg-orange-600 text-white p-8 rounded-[2.5rem] font-black text-xl uppercase shadow-xl">Pubblica</button>
+            <button onClick={saveImpegno} className="w-full bg-orange-600 text-white p-8 rounded-[2.5rem] font-black text-xl uppercase shadow-xl">
+              {editingImpId ? 'Aggiorna Attività' : 'Pubblica'}
+            </button>
           </div>
         </div>
       )}
@@ -382,10 +373,33 @@ const saveImpegno = async () => {
           <div className="space-y-3">
             <h3 className="text-[9px] font-black uppercase text-slate-400 ml-5 tracking-widest">Attività Recenti</h3>
             {data.impegni.map((i: any) => (
-              <div key={i.id} onClick={() => setActiveImp(i.id)} className={`p-6 rounded-[2.5rem] border-4 cursor-pointer transition-all ${activeImp === i.id ? 'bg-white border-blue-700 shadow-xl' : 'bg-white border-transparent shadow-sm'}`}>
-                <span className={`text-[8px] font-black px-2 py-0.5 rounded-full mb-2 inline-block ${i.tipo === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'}`}>COMMA {i.tipo}</span>
-                <h4 className="font-black uppercase text-lg tracking-tighter">{i.titolo}</h4>
-                <p className="text-[9px] font-bold text-slate-300 uppercase italic">{i.data} • {i.durata_max}H</p>
+              <div 
+                key={i.id} 
+                onClick={() => setActiveImp(i.id)} 
+                className={`p-6 rounded-[2.5rem] border-4 cursor-pointer transition-all flex justify-between items-center ${activeImp === i.id ? 'bg-white border-blue-700 shadow-xl' : 'bg-white border-transparent shadow-sm'}`}
+              >
+                <div>
+                  <span className={`text-[8px] font-black px-2 py-0.5 rounded-full mb-2 inline-block ${i.tipo === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'}`}>COMMA {i.tipo}</span>
+                  <h4 className="font-black uppercase text-lg tracking-tighter">{i.titolo}</h4>
+                  <p className="text-[9px] font-bold text-slate-300 uppercase italic">{i.data} • {i.ore || i.durata_max}H</p>
+                </div>
+
+                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                  <button 
+                    onClick={() => startEditImpegno(i)} 
+                    className="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                    title="Modifica Attività"
+                  >
+                    ✏️
+                  </button>
+                  <button 
+                    onClick={() => deleteImpegno(i.id)} 
+                    className="p-3 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                    title="Elimina Attività"
+                  >
+                    🗑️
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -488,7 +502,6 @@ function DocentePanel({ docente, adminMode = false }: any) {
   const [documenti, setDocumenti] = useState<any[]>([]);
   const [tab, setTab] = useState('calendario');
 
-  // 1. CARICAMENTO DATI (FETCH)
   const load = useCallback(async () => {
     const [i, p, d] = await Promise.all([
       supabase.from('impegni').select('*').order('data', { ascending: true }),
@@ -502,7 +515,6 @@ function DocentePanel({ docente, adminMode = false }: any) {
 
   useEffect(() => { load(); }, [load]);
 
-  // 2. AZIONE: AGGIORNAMENTO STATO (VERDE/AZZURRO/ROSSO)
   const updateStato = async (pianoId: string, nuovoStato: string | null) => {
     const { error } = await supabase
       .from('piani')
@@ -516,7 +528,6 @@ function DocentePanel({ docente, adminMode = false }: any) {
     }
   };
 
-  // 3. CALCOLO STATISTICHE (Solo P e AG contano come validate)
   const stats = {
     vA: piani.filter(p => p.tipo === 'A' && (p.stato === 'P' || p.stato === 'AG')).reduce((s, c) => s + c.ore_effettive, 0),
     vB: piani.filter(p => p.tipo === 'B' && (p.stato === 'P' || p.stato === 'AG')).reduce((s, c) => s + c.ore_effettive, 0),
@@ -525,7 +536,7 @@ function DocentePanel({ docente, adminMode = false }: any) {
   return (
     <div className="max-w-6xl mx-auto px-4 pb-20">
       
-      {/* --- SEZIONE 1: HEADER E PROGRESSO --- */}
+      {/* SEZIONE 1: HEADER E PROGRESSO */}
       <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-slate-100 mb-10">
         <div className="flex flex-wrap items-center justify-between gap-6 mb-8">
           <div className="flex items-center gap-6">
@@ -547,7 +558,7 @@ function DocentePanel({ docente, adminMode = false }: any) {
         </div>
       </div>
 
-      {/* --- SEZIONE 2: NAVIGAZIONE (MENU TAB) --- */}
+      {/* SEZIONE 2: NAVIGAZIONE */}
       <nav className="flex flex-wrap gap-3 mb-12 justify-center print:hidden">
         {[
           { id: 'calendario', label: 'Prenota' },
@@ -566,7 +577,7 @@ function DocentePanel({ docente, adminMode = false }: any) {
         ))}
       </nav>
 
-      {/* --- SEZIONE 3: CONTENUTO TAB --- */}
+      {/* SEZIONE 3: CONTENUTO TAB */}
       
       {/* TAB CALENDARIO */}
       {tab === 'calendario' && (
@@ -611,7 +622,7 @@ function DocentePanel({ docente, adminMode = false }: any) {
         </div>
       )}
 
-      {/* TAB MIEI (IL CUORE DELLA VALIDAZIONE COLORATA) */}
+      {/* TAB MIEI */}
       {tab === 'miei' && (
         <div className="grid gap-4 animate-in fade-in">
           {piani.length === 0 ? (
@@ -631,7 +642,6 @@ function DocentePanel({ docente, adminMode = false }: any) {
 
                   <div className="flex items-center gap-4 mt-4 sm:mt-0">
                     {adminMode ? (
-                      /* TASTI SEMAFORO PER ADMIN - FORCE COLOR */
                       <div className="flex bg-slate-100 p-2 rounded-2xl gap-2 border shadow-inner">
                         <button 
                           onClick={() => updateStato(p.id, 'P')} 
@@ -648,7 +658,6 @@ function DocentePanel({ docente, adminMode = false }: any) {
                         <button onClick={() => updateStato(p.id, null)} className="px-2 text-slate-300 hover:text-slate-600 font-bold">×</button>
                       </div>
                     ) : (
-                      /* ETICHETTA STATO PER DOCENTE */
                       <div className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase ${
                         p.stato === 'P' ? 'bg-emerald-50 text-emerald-600' : 
                         p.stato === 'AG' ? 'bg-sky-50 text-sky-600' : 
@@ -721,14 +730,14 @@ function DocentePanel({ docente, adminMode = false }: any) {
              </tbody>
            </table>
            <div className="mt-16 grid grid-cols-2 gap-10">
-              <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100">
-                <p className="text-[10px] font-black text-slate-400 uppercase mb-2 italic tracking-widest">Totale Comma A (Validato)</p>
-                <p className="text-4xl font-black text-slate-800">{stats.vA} / {docente.ore_a_dovute}H</p>
-              </div>
-              <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100">
-                <p className="text-[10px] font-black text-slate-400 uppercase mb-2 italic tracking-widest">Totale Comma B (Validato)</p>
-                <p className="text-4xl font-black text-slate-800">{stats.vB} / {docente.ore_b_dovute}H</p>
-              </div>
+             <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100">
+               <p className="text-[10px] font-black text-slate-400 uppercase mb-2 italic tracking-widest">Totale Comma A (Validato)</p>
+               <p className="text-4xl font-black text-slate-800">{stats.vA} / {docente.ore_a_dovute}H</p>
+             </div>
+             <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100">
+               <p className="text-[10px] font-black text-slate-400 uppercase mb-2 italic tracking-widest">Totale Comma B (Validato)</p>
+               <p className="text-4xl font-black text-slate-800">{stats.vB} / {docente.ore_b_dovute}H</p>
+             </div>
            </div>
         </div>
       )}
@@ -736,9 +745,9 @@ function DocentePanel({ docente, adminMode = false }: any) {
     </div>
   );
 }
-// --- COMPONENTE BARRA DI AVANZAMENTO (Da mettere fuori dalle altre funzioni) ---
+
+// --- COMPONENTE BARRA DI AVANZAMENTO ---
 function ProgressBar({ label, attuale, target, color }: any) {
-  // Calcolo della percentuale (massimo 100%)
   const percent = Math.min((attuale / target) * 100, 100);
   const colorClass = color === 'blue' ? 'bg-blue-600' : 'bg-indigo-600';
   
@@ -766,6 +775,8 @@ function ProgressBar({ label, attuale, target, color }: any) {
     </div>
   );
 }
+
+// --- COMPONENTE MINI STATS ADMIN ---
 function AdminStatMini({ label, val, max, col, pian = 0 }: any) {
   const c = col === 'blue' ? 'text-blue-700' : 'text-indigo-700';
   const bg = col === 'blue' ? 'bg-blue-50' : 'bg-indigo-50';
