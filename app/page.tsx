@@ -4,10 +4,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import * as XLSX from 'xlsx';
 
-// Credenziali Supabase
+// Configura Supabase con le tue credenziali
 const SUPABASE_URL = "https://tvjcpczzlqtwtefvnrhk.supabase.co";
-// Inserisci qui la tua anon key completa di Supabase se diversa
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOi..."; 
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOi..."; // Inserisci la tua anon key completa
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const ADMIN_PASSWORD = "admin";
@@ -138,49 +137,18 @@ function AdminPanel() {
   const [formImp, setFormImp] = useState({ titolo: '', data: '', ore: 2, tipo: 'A' });
 
   const loadData = useCallback(async () => {
-    try {
-      const [d, i, p, dc] = await Promise.all([
-        supabase.from('docenti').select('*'),
-        supabase.from('impegni').select('*'),
-        supabase.from('piani').select('*'),
-        supabase.from('documenti').select('*')
-      ]);
-
-      // Normalizzazione campi per prevenire disallineamenti di colonne
-      const docentiNorm = (d.data || []).map((doc: any) => ({
-        ...doc,
-        nome: doc.nome || doc.denominazione || doc.cognome_nome || 'Docente',
-        ore_a_dovute: doc.ore_a_dovute ?? doc.ore_a ?? 40,
-        ore_b_dovute: doc.ore_b_dovute ?? doc.ore_b ?? 40,
-        codice_accesso: doc.codice_accesso || doc.codice || ''
-      }));
-
-      const impegniNorm = (i.data || []).map((imp: any) => ({
-        ...imp,
-        titolo: imp.titolo || imp.nome || 'Attività',
-        data: imp.data || imp.data_impegno || imp.created_at?.split('T')[0] || '',
-        ore: imp.ore ?? imp.durata_max ?? imp.durata ?? 2,
-        tipo: imp.tipo || imp.comma || 'A'
-      }));
-
-      const pianiNorm = (p.data || []).map((pian: any) => ({
-        ...pian,
-        ore_effettive: pian.ore_effettive ?? pian.ore ?? 0,
-        stato: pian.stato || null
-      }));
-
-      setData({
-        docenti: docentiNorm,
-        impegni: impegniNorm,
-        piani: pianiNorm,
-        docs: dc.data || []
-      });
-
-      if (impegniNorm.length > 0 && !activeImp) {
-        setActiveImp(impegniNorm[0].id);
-      }
-    } catch (err) {
-      console.error("Errore caricamento dati admin:", err);
+    const [d, i, p, dc] = await Promise.all([
+      supabase.from('docenti').select('*'),
+      supabase.from('impegni').select('*').order('data', { ascending: false }),
+      supabase.from('piani').select('*'),
+      supabase.from('documenti').select('*').order('created_at', { ascending: false })
+    ]);
+    
+    const impegniCaricati = i.data || [];
+    setData({ docenti: d.data || [], impegni: impegniCaricati, piani: p.data || [], docs: dc.data || [] });
+    
+    if (impegniCaricati.length > 0 && !activeImp) {
+      setActiveImp(impegniCaricati[0].id);
     }
   }, [activeImp]);
 
@@ -657,33 +625,14 @@ function DocentePanel({ docente, adminMode = false }: any) {
   const [tab, setTab] = useState('calendario');
 
   const load = useCallback(async () => {
-    try {
-      const [i, p, d] = await Promise.all([
-        supabase.from('impegni').select('*'),
-        supabase.from('piani').select('*').eq('docente_id', docente.id),
-        supabase.from('documenti').select('*')
-      ]);
-
-      const impegniNorm = (i.data || []).map((imp: any) => ({
-        ...imp,
-        titolo: imp.titolo || imp.nome || 'Attività',
-        data: imp.data || imp.data_impegno || imp.created_at?.split('T')[0] || '',
-        ore: imp.ore ?? imp.durata_max ?? imp.durata ?? 2,
-        tipo: imp.tipo || imp.comma || 'A'
-      }));
-
-      const pianiNorm = (p.data || []).map((pian: any) => ({
-        ...pian,
-        ore_effettive: pian.ore_effettive ?? pian.ore ?? 0,
-        stato: pian.stato || null
-      }));
-
-      setImpegni(impegniNorm); 
-      setPiani(pianiNorm);
-      setDocumenti(d.data || []);
-    } catch (err) {
-      console.error("Errore caricamento dati docente:", err);
-    }
+    const [i, p, d] = await Promise.all([
+      supabase.from('impegni').select('*').order('data', { ascending: true }),
+      supabase.from('piani').select('*').eq('docente_id', docente.id),
+      supabase.from('documenti').select('*').order('created_at', { ascending: false })
+    ]);
+    setImpegni(i.data || []); 
+    setPiani(p.data || []);
+    setDocumenti(d.data || []);
   }, [docente.id]);
 
   useEffect(() => { load(); }, [load]);
@@ -861,7 +810,7 @@ function DocentePanel({ docente, adminMode = false }: any) {
                 <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-3xl shadow-inner">📄</div>
                 <div className="text-left">
                   <h4 className="font-black text-slate-800 uppercase text-lg">{doc.nome}</h4>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest italic">Pubblicato il {new Date(doc.created_at || Date.now()).toLocaleDateString()}</p>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest italic">Pubblicato il {new Date(doc.created_at).toLocaleDateString()}</p>
                 </div>
               </div>
               <a href={doc.url} target="_blank" rel="noreferrer" className="bg-slate-900 text-white px-8 py-4 rounded-2xl text-[10px] font-black uppercase hover:bg-blue-600 shadow-lg transition-all">Download</a>
