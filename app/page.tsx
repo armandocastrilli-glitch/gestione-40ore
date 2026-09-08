@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import * as XLSX from 'xlsx';
+import DocentePanel from './DocentePanel'; // Assicurati che il percorso del componente sia corretto
 
-// Configura Supabase con le tue credenziali
 const SUPABASE_URL = "https://tvjcpczzlqtwtefvnrhk.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR2amNwY3p6bHF0d3RlZnZucmhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1NzAzMTcsImV4cCI6MjA4NjE0NjMxN30.w2VzO83AGEUERjs6_d0NnSghQU1SeZNguNZe171ZPK4"; // Inserisci la tua anon key completa
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR2amNwY3p6bHF0d3RlZnZucmhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1NzAzMTcsImV4cCI6MjA4NjE0NjMxN30.w2VzO83AGEUERjs6_d0NnSghQU1SeZNguNZe171ZPK4";
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const ADMIN_PASSWORD = "admin";
@@ -115,22 +115,25 @@ export default function App() {
       </div>
 
       {currentUser === 'ADMIN' ? (
-        <AdminPanel />
+        <AdminPanel supabase={supabase} />
       ) : (
         <main className="max-w-[1400px] mx-auto p-6 lg:p-10">
-          <DocentePanel docente={currentUser} adminMode={false} />
+          <DocentePanel docente={currentUser} adminMode={false} supabase={supabase} />
         </main>
       )}
     </div>
   );
 }
 
-function AdminPanel() {
+interface AdminPanelProps {
+  supabase: SupabaseClient;
+}
+
+function AdminPanel({ supabase }: AdminPanelProps) {
   const [tab, setTab] = useState('docenti');
   const [data, setData] = useState({ docenti: [], impegni: [], piani: [], docs: [] });
   const [selDoc, setSelDoc] = useState<any>(null);
   const [activeImp, setActiveImp] = useState<string | null>(null);
-  
   const [editingImpId, setEditingImpId] = useState<string | null>(null);
 
   const [formDoc, setFormDoc] = useState({ nome: '', contratto: 'INTERA', ore: 18, mesi: 9 });
@@ -150,7 +153,7 @@ function AdminPanel() {
     if (impegniCaricati.length > 0 && !activeImp) {
       setActiveImp(impegniCaricati[0].id);
     }
-  }, [activeImp]);
+  }, [activeImp, supabase]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -215,28 +218,6 @@ function AdminPanel() {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Registro");
     XLSX.writeFile(workbook, `Report_Scuola_${new Date().toISOString().split('T')[0]}.xlsx`);
-  };
-
-  const deleteImpegno = async (id: string) => {
-    if(!confirm("⚠️ Eliminando l'impegno cancellerai le ore di tutti i docenti per questa attività. Procedere?")) return;
-    const { error } = await supabase.from('impegni').delete().eq('id', id);
-    if(!error) { 
-      if (activeImp === id) setActiveImp(null); 
-      loadData(); 
-    } else {
-      alert("Errore durante l'eliminazione: " + error.message);
-    }
-  };
-
-  const startEditImpegno = (imp: any) => {
-    setEditingImpId(imp.id);
-    setFormImp({
-      titolo: imp.titolo,
-      data: imp.data,
-      ore: imp.ore || 2,
-      tipo: imp.tipo || 'A'
-    });
-    setTab('impegni');
   };
 
   const cancelEdit = () => {
@@ -317,7 +298,6 @@ function AdminPanel() {
 
   return (
     <main className="max-w-[1400px] mx-auto p-6 lg:p-10">
-      
       <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
         <h1 className="text-3xl font-black uppercase italic tracking-tighter text-slate-900">Admin Control Panel</h1>
         <button 
@@ -442,6 +422,21 @@ function AdminPanel() {
         </div>
       )}
 
+      {tab === 'docenti' && selDoc && (
+        <div className="mt-6 border-t-[8px] border-slate-900 pt-8">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-black uppercase tracking-widest text-slate-900">Dettaglio Docente: {selDoc.nome}</h2>
+            <button 
+              onClick={() => setSelDoc(null)} 
+              className="bg-slate-200 hover:bg-slate-300 text-slate-800 px-4 py-2 font-bold uppercase text-xs rounded-xl transition"
+            >
+              Chiudi X
+            </button>
+          </div>
+          <DocentePanel docente={selDoc} adminMode={true} supabase={supabase} />
+        </div>
+      )}
+
       {tab === 'nuovo_doc' && (
         <div className="max-w-3xl mx-auto bg-white p-10 md:p-12 rounded-[3.5rem] shadow-2xl border animate-in zoom-in">
           <h2 className="text-3xl font-black mb-8 uppercase italic text-blue-800 tracking-tighter">Registrazione Staff</h2>
@@ -503,6 +498,9 @@ function AdminPanel() {
           </div>
         </div>
       )}
+    </main>
+  );
+}
 
 "use client";
 
@@ -531,14 +529,15 @@ const calcolaOreDovute = (tipoContratto: string, ore: number, mesi: number) => {
 };
 
 export default function AppelloDocumentiPanel({ 
-  tab, 
+  tab,
+  setTab,
   data, 
   activeImp, 
   setActiveImp, 
   startEditImpegno, 
   deleteImpegno, 
-  selDoc, 
-  setSelDoc, 
+  selDocente, 
+  setSelDocente, 
   loadData, 
   supabase 
 }: any) {
@@ -546,13 +545,29 @@ export default function AppelloDocumentiPanel({
     <main className="min-h-screen p-8 bg-slate-100">
       <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
         <h1 className="text-3xl font-black uppercase italic tracking-tighter text-slate-900">Admin Control Panel</h1>
+        
+        {/* Navigazione principale Admin */}
+        <div className="flex gap-2">
+          {['appello', 'docenti', 'documenti'].map((t) => (
+            <button
+              key={t}
+              onClick={() => { setTab(t); setSelDocente(null); }}
+              className={`px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${
+                tab === t && !selDocente ? 'bg-slate-900 text-white shadow-lg' : 'bg-white text-slate-400 hover:text-slate-900'
+              }`}
+            >
+              {t === 'appello' ? 'Appello' : t === 'docenti' ? 'Docenti' : 'Documenti'}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {tab === 'appello' && (
+      {/* SEZIONE APPELLO */}
+      {tab === 'appello' && !selDocente && (
         <div className="grid lg:grid-cols-2 gap-8 animate-in fade-in">
           <div className="space-y-3">
             <h3 className="text-[9px] font-black uppercase text-slate-400 ml-5 tracking-widest">Attività Recenti</h3>
-            {data.impegni.map((i: any) => (
+            {data.impegni?.map((i: any) => (
               <div 
                 key={i.id} 
                 onClick={() => setActiveImp(i.id)} 
@@ -575,8 +590,8 @@ export default function AppelloDocumentiPanel({
           <div className="bg-white p-8 rounded-[3.5rem] shadow-2xl border sticky top-28 min-h-[450px]">
             <h3 className="text-xl font-black mb-6 uppercase italic underline decoration-blue-100 underline-offset-4">Appello</h3>
             <div className="space-y-3">
-              {data.piani.filter((p: any) => p.impegno_id === activeImp).map((p: any) => {
-                const d = data.docenti.find((x: any) => x.id === p.docente_id);
+              {data.piani?.filter((p: any) => p.impegno_id === activeImp).map((p: any) => {
+                const d = data.docenti?.find((x: any) => x.id === p.docente_id);
                 return (
                   <div key={p.id} className="p-5 bg-slate-50 rounded-[1.8rem] flex justify-between items-center">
                     <div>
@@ -606,7 +621,30 @@ export default function AppelloDocumentiPanel({
         </div>
       )}
 
-      {tab === 'documenti' && (
+      {/* SEZIONE DOCENTI (ADMIN) */}
+      {tab === 'docenti' && !selDocente && (
+        <div className="bg-white p-10 rounded-[3.5rem] shadow-2xl border animate-in fade-in">
+          <h3 className="text-xl font-black mb-6 uppercase italic underline decoration-blue-100 underline-offset-4">Elenco Docenti</h3>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {data.docenti?.map((doc: any) => (
+              <div 
+                key={doc.id} 
+                onClick={() => setSelDocente(doc)}
+                className="p-6 bg-slate-50 rounded-[2rem] border cursor-pointer hover:border-blue-600 hover:shadow-lg transition-all flex items-center justify-between"
+              >
+                <div>
+                  <h4 className="font-black uppercase text-base text-slate-800">{doc.nome}</h4>
+                  <p className="text-[10px] font-bold text-blue-600 uppercase mt-1">{doc.contratto || 'INTERA'} • {doc.ore_settimanali || 18}H</p>
+                </div>
+                <span className="text-slate-400 font-bold">→</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* SEZIONE DOCUMENTI */}
+      {tab === 'documenti' && !selDocente && (
         <div className="bg-white p-10 rounded-[3.5rem] shadow-2xl border animate-in zoom-in">
           <div className="grid lg:grid-cols-2 gap-12">
             <div className="bg-slate-50 p-10 rounded-[2.5rem] border-4 border-dashed border-slate-200 text-center flex flex-col items-center justify-center">
@@ -628,7 +666,7 @@ export default function AppelloDocumentiPanel({
             </div>
             <div className="space-y-3">
               <h3 className="text-[9px] font-black uppercase text-slate-300 mb-5 tracking-widest italic">Documenti Pubblicati</h3>
-              {data.docs.map((doc: any) => (
+              {data.docs?.map((doc: any) => (
                 <div key={doc.id} className="p-5 bg-white border border-slate-100 rounded-[1.8rem] flex justify-between items-center shadow-sm">
                    <span className="font-black uppercase text-[10px] text-slate-700">{doc.nome}</span>
                    <button 
@@ -648,13 +686,14 @@ export default function AppelloDocumentiPanel({
         </div>
       )}
 
-      {selDoc && (
-        <div className="mt-12 border-t-[8px] border-slate-900 pt-12">
-          <div className="flex justify-between items-center mb-6">
-             <h2 className="text-xl font-black uppercase tracking-widest">Dettaglio: {selDoc.nome}</h2>
-             <button onClick={() => setSelDoc(null)} className="text-slate-400 font-bold uppercase text-xs">Chiudi X</button>
+      {/* DETTAGLIO DOCENTE SELEZIONATO NELL'ADMIN */}
+      {selDocente && (
+        <div className="mt-12 border-t-[8px] border-slate-900 pt-12 animate-in fade-in">
+          <div className="flex justify-between items-center mb-6 max-w-6xl mx-auto px-4">
+             <h2 className="text-xl font-black uppercase tracking-widest">Dettaglio Docente: {selDocente.nome}</h2>
+             <button onClick={() => setSelDocente(null)} className="bg-slate-900 text-white px-6 py-2 rounded-xl text-[10px] font-black uppercase">← Torna Indietro</button>
           </div>
-          <DocentePanel docente={selDoc} adminMode={true} supabase={supabase} />
+          <DocentePanel docente={selDocente} adminMode={true} supabase={supabase} />
         </div>
       )}
     </main>
